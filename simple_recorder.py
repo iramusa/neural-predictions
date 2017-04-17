@@ -2,15 +2,15 @@
 """
 Records images from simple sim
 """
-import world
+import simple_sim
 import numpy as np
 import os
 import time
 import tensorflow as tf
 
 SIM = 'simple'
-# FILENAME = SIM + '-valid'
-FILENAME = SIM + '-train'
+FILENAME = SIM + '-valid'
+# FILENAME = SIM + '-train'
 EPISODES_TRAIN = 1000
 EPISODES_VALID = 200
 EP_LEN = 20
@@ -34,17 +34,15 @@ class Record(object):
         self.ep = 0
         self.t = 0
         self.obs_list = []
-        filename = os.path.join('images/', FILENAME + '.tfrecords')
+        filename = os.path.join('data-toy/', FILENAME + '.tfrecords')
         print('Writing', filename)
         self.writer = tf.python_io.TFRecordWriter(filename)
 
     def run(self):
-        cnt = 0
-
         total_episodes = EPISODES_TRAIN if 'train' in FILENAME else EPISODES_VALID
         while self.ep < total_episodes:
             print('Episode:', self.ep)
-            self.world = world.World()
+            self.world = simple_sim.World()
             for _ in range(EP_LEN):
                 self.world.run()
                 observation = self.world.draw()
@@ -52,7 +50,6 @@ class Record(object):
                 self.write_record()
                 self.obs_list = []
                 self.t += 1
-                cnt += 1
 
             self.ep += 1
 
