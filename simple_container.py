@@ -38,7 +38,9 @@ class DataContainer(object):
         tf.train.start_queue_runners(sess=self.sess)
 
         self.load_images()
-        self.im_med = np.median(self.images, axis=0)
+
+        # TODO get a median image, not episode
+        self.im_med = np.median(self.images, axis=0)[0]
 
         # del self.single_image
         # self.sess.close()
