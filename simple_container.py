@@ -127,4 +127,9 @@ class DataContainer(object):
             labels = np.ones((images.shape[0],))
             yield (images, labels)
 
+    def generate_ae_gan_mo(self):
+        while True:
+            images = self.get_batch_images()
+            labels = np.ones((images.shape[0],))
+            yield (images, [images, labels])
 

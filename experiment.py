@@ -137,11 +137,11 @@ class Experiment(object):
             self.network.autoencoder_gan.compile(optimizer=Adam(lr=0.0002), loss='binary_crossentropy')
             # raise ValueError('Discriminator must not be trainable')
 
-        history = self.network.autoencoder_gan.fit_generator(self.train_gen.generate_ae_gan(),
+        history = self.network.autoencoder_gan.fit_generator(self.train_gen.generate_ae_gan_mo(),
                                                              samples_per_epoch=BATCHES_PER_EPOCH * BATCH_SIZE,
                                                              nb_epoch=epochs,
                                                              max_q_size=5,
-                                                             validation_data=self.valid_gen.generate_ae_gan(),
+                                                             validation_data=self.valid_gen.generate_ae_gan_mo(),
                                                              nb_val_samples=4 * BATCH_SIZE)
 
         self.losses['ae_train'] += history.history['loss']
