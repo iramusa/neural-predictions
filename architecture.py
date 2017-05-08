@@ -186,17 +186,23 @@ class MultiNetwork(object):
             self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy')
             # raise ValueError('Discriminator must be trainable')
 
-        batch_size = 32
+        batch_size = 64
+
+        labels = np.zeros((batch_size,))
+        labels[:int(batch_size/2)] = 1
+
+        # indices = np.random.randint(0, real_images.shape[0], size=int(batch_size/2))
+        # real = real_images[indices, ...]
 
         # generate fake images
         fake_images = self.autoencoder_gen.predict(real_images)
 
+        train = np.concatenate((real_images, fake_images))
+
         if test:
-            loss = self.autoencoder_disc.test_on_batch(real_images, np.ones((batch_size))) + \
-                   self.autoencoder_disc.test_on_batch(fake_images, np.zeros((batch_size)))
+            loss = self.autoencoder_disc.test_on_batch(train, labels)
         else:
-            loss = self.autoencoder_disc.train_on_batch(real_images, np.ones((batch_size))) + \
-                   self.autoencoder_disc.train_on_batch(fake_images, np.zeros((batch_size)))
+            loss = self.autoencoder_disc.train_on_batch(train, labels)
 
         return loss
 
