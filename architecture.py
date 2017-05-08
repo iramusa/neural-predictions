@@ -85,8 +85,8 @@ class MultiNetwork(object):
         self.encoder = self.build_branch(self.structure['encoder'])
         self.decoder = self.build_branch(self.structure['decoder'])
 
-        # self.encoder_disc = self.build_branch(self.structure['encoder'])
-        # self.screen_discriminator = self.build_branch(self.structure['screen_discriminator'])
+        self.encoder_disc = self.build_branch(self.structure['shallow_encoder'])
+        self.screen_discriminator = self.build_branch(self.structure['screen_discriminator'])
 
         # self.physics_predictor = self.build_physics_predictor()
         # self.action_mapper = self.build_action_mapper()
@@ -97,7 +97,7 @@ class MultiNetwork(object):
 
     def build_networks(self):
         self.build_autoencoder()
-        # self.build_ae_gan()
+        self.build_ae_gan()
 
     def build_branch(self, structure):
         input_shape = structure.get('input_shape')
@@ -149,7 +149,7 @@ class MultiNetwork(object):
         screen_disc = self.screen_discriminator(z_disc)
 
         self.autoencoder_disc = Model(input_img, screen_disc)
-        self.autoencoder_disc.compile(optimizer='adam', loss='binary_crossentropy')
+        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy')
         # self.autoencoder_disc.summary()
         plot(self.autoencoder_disc, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_disc'),
              show_layer_names=True,
@@ -159,7 +159,7 @@ class MultiNetwork(object):
         fakeness = self.autoencoder_disc(screen_recon)
 
         self.autoencoder_gan = Model(input_img, fakeness)
-        self.autoencoder_gan.compile(optimizer='adam', loss='binary_crossentropy')
+        self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy')
         # self.autoencoder_gan.summary()
         plot(self.autoencoder_gan, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_gan'),
              show_layer_names=True,
@@ -182,7 +182,7 @@ class MultiNetwork(object):
     def train_batch_ae_discriminator(self, real_images, test=False):
         if not self.autoencoder_disc.trainable:
             make_trainable(self.autoencoder_disc, True)
-            self.autoencoder_disc.compile(optimizer='adam', loss='binary_crossentropy')
+            self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy')
             # raise ValueError('Discriminator must be trainable')
 
         batch_size = 64
@@ -210,7 +210,7 @@ class MultiNetwork(object):
 
         if self.autoencoder_disc.trainable:
             make_trainable(self.autoencoder_disc, False)
-            self.autoencoder_disc.compile(optimizer='adam', loss='binary_crossentropy')
+            self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy')
             # raise ValueError('Discriminator must not be trainable')
 
         labels = np.ones((batch_size,))
