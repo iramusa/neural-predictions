@@ -189,7 +189,7 @@ DECODER = {
 
 SCREEN_DISCRIMINATOR = {
         'name': 'scr_disc',
-        'input_shape': (V_SIZE,),
+        'input_shape': (1568,),
         'output_shape': (1,),
         'layers': [
             {
@@ -212,7 +212,7 @@ SCREEN_DISCRIMINATOR = {
 SHALLOW_ENCODER = {
         'name': 'sh_enc',
         'input_shape': INPUT_IMAGE_SHAPE,
-        'output_shape': (V_SIZE,),
+        'output_shape': (1568,),
         'layers': [
             {
                 'type': Convolution2D,
@@ -226,20 +226,6 @@ SHALLOW_ENCODER = {
             },
             {
                 'type': Flatten,
-            },
-            {
-                'type': BatchNormalization,
-                KEYWORD_ARGS: {
-                    'mode': 2,
-                }
-            },
-            {
-                'type': Dense,
-                POSITIONAL_ARGS: [V_SIZE],
-                KEYWORD_ARGS: {
-                    'activation': 'relu',
-                    'init': 'uniform',
-                }
             },
         ],
     }
