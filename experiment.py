@@ -3,6 +3,7 @@
 # %% imports
 import sys
 import os
+import datetime
 
 import numpy as np
 import pandas as pd
@@ -15,6 +16,7 @@ import architecture
 import simple_network as network_params
 from simple_container import DataContainer
 
+EXPERIMENTS_FOLDER = 'experiments'
 DATA_FOLDER = 'data-toy'
 RECONSTRUCTIONS_FOLDER = 'reconstructions'
 PLOTS_FOLDER = 'plots'
@@ -30,7 +32,8 @@ BATCHES_PER_EPOCH = 600
 
 class Experiment(object):
     def __init__(self, output_folder='pure_gan', description='', epochs=200, **kwargs):
-        self.output_folder = output_folder
+        datetag = datetime.datetime.now().strftime('%y-%m-%d_%H:%M')
+        self.output_folder = '{0}/{1}_{2}'.format(EXPERIMENTS_FOLDER, output_folder, datetag)
         self.reconstructions_folder = '{0}/{1}'.format(self.output_folder, RECONSTRUCTIONS_FOLDER)
         self.plots_folder = '{0}/{1}'.format(self.output_folder, PLOTS_FOLDER)
         self.models_folder = '{0}/{1}'.format(self.output_folder, MODELS_FOLDER)
@@ -221,18 +224,18 @@ class Experiment(object):
             os.makedirs(self.plots_folder)
 
     def run_experiment(self):
-        if self.output_folder == 'pure_gan':
+        if 'pure_gan' in self.output_folder:
             for i in range(100):
                 self.train_ae_disc(epochs=2)
                 # time.sleep(3)
                 self.train_ae_gan(epochs=4)
                 # time.sleep(3)
 
-        if self.output_folder == 'pure_ae':
+        if 'pure_ae' in self.output_folder:
             for i in range(100):
                 self.train_ae(epochs=10)
 
-        if self.output_folder == 'ae_gan':
+        if 'ae_gan' in self.output_folder:
             self.train_ae(epochs=60)
             for i in range(50):
                 time.sleep(3)
@@ -242,7 +245,7 @@ class Experiment(object):
                 time.sleep(3)
                 self.train_ae(epochs=5)
 
-        if self.output_folder == 'ae_gan_mix':
+        if 'ae_gan_mix' in self.output_folder:
             self.train_ae(epochs=4)
             for i in range(250):
                 time.sleep(3)
