@@ -1,5 +1,6 @@
 from keras.layers import Input, Dense, Convolution2D, Deconvolution2D, MaxPooling2D,\
     UpSampling2D, Merge, LSTM, Flatten, ZeroPadding2D, Reshape, BatchNormalization
+from keras.layers.advanced_activations import LeakyReLU
 
 
 IMAGE_SIZE_X = 28
@@ -230,10 +231,62 @@ SHALLOW_ENCODER = {
         ],
     }
 
+DISC_ENCODER = {
+        'name': 'conv4',
+        'input_shape': INPUT_IMAGE_SHAPE,
+        'output_shape': (V_SIZE,),
+        'layers': [
+            {
+                'type': Convolution2D,
+                POSITIONAL_ARGS: [8, 3, 3],
+                KEYWORD_ARGS : {
+                    'subsample': (2, 2),
+                    'activation': LeakyReLU(alpha=0.3),
+                    'init': 'glorot_normal',
+                    'border_mode': 'same'
+                }
+            },
+            {
+                'type': BatchNormalization,
+                KEYWORD_ARGS: {
+                    'mode': 2,
+                }
+            },
+            {
+                'type': Convolution2D,
+                POSITIONAL_ARGS: [8, 3, 3],
+                KEYWORD_ARGS : {
+                    'subsample': (2, 2),
+                    'activation': LeakyReLU(alpha=0.3),
+                    'init': 'glorot_normal',
+                    'border_mode': 'same'
+                }
+            },
+            {
+                'type': Flatten,
+            },
+            {
+                'type': BatchNormalization,
+                KEYWORD_ARGS: {
+                    'mode': 2,
+                }
+            },
+            {
+                'type': Dense,
+                POSITIONAL_ARGS: [V_SIZE],
+                KEYWORD_ARGS: {
+                    'activation': LeakyReLU(alpha=0.3),
+                    'init': 'uniform',
+                }
+            },
+        ],
+    }
+
 
 DEFAULT_STRUCTURE = {
     'encoder': ENCODER,
     'decoder': DECODER,
     'screen_discriminator': SCREEN_DISCRIMINATOR,
     'shallow_encoder': SHALLOW_ENCODER,
+    'disc_encoder': DISC_ENCODER,
 }

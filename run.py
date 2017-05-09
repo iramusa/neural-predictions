@@ -31,7 +31,7 @@ BATCHES_PER_EPOCH = 600
 
 
 class Experiment(object):
-    def __init__(self, output_folder='pure_gan', description='', epochs=200, **kwargs):
+    def __init__(self, output_folder='adaptive_train', description='', epochs=200, **kwargs):
         datetag = datetime.datetime.now().strftime('%y-%m-%d_%H:%M')
         self.output_folder = '{0}/{1}_{2}'.format(EXPERIMENTS_FOLDER, output_folder, datetag)
         self.reconstructions_folder = '{0}/{1}'.format(self.output_folder, RECONSTRUCTIONS_FOLDER)
@@ -105,40 +105,43 @@ class Experiment(object):
             fpath = '{0}/ae_gen_{1}.hdf5'.format(self.models_folder, epochs_so_far)
             self.network.autoencoder_gen.save_weights(fpath)
 
-    def train_ae_disc(self, epochs=5):
+    def train_ae_disc(self, epochs=5, noise=0.25):
         print('Training discriminator for {0} epochs.'.format(epochs))
 
-        n_batches_train = int(BATCHES_PER_EPOCH/16)
-        n_batches_valid = 4
+        n_batches_train = int(BATCHES_PER_EPOCH)
+        n_batches_valid = 16
         train_losses = []
         validation_losses = []
 
         for i in range(epochs):
-            batch_loss = 0
-            for j in range(n_batches_train):
-                real_images = self.train_gen.get_batch_images()
-                batch_loss += self.network.train_batch_ae_discriminator(real_images)
+            train_losses.append(self.network.train_epoch_ae_discriminator(self.train_gen.get_batch_images, n_batches_train, noise=noise))
+            validation_losses.append(self.network.test_ae_discriminator(self.valid_gen.get_batch_images, n_batches_valid))
+            print('disc train losses:', train_losses[-1])
+            print('disc valid acc:', validation_losses[-1])
 
-            train_losses.append(batch_loss/n_batches_train)
-
-            batch_loss = 0
-            for j in range(n_batches_valid):
-                real_images = self.valid_gen.get_batch_images()
-                batch_loss += self.network.train_batch_ae_discriminator(real_images, test=True)
-
-            validation_losses.append(batch_loss/n_batches_valid)
-
-        print('disc train losses:', train_losses)
-        print('disc valid losses:', validation_losses)
+        #     batch_loss = 0
+        #     for j in range(n_batches_train):
+        #         real_images = self.train_gen.get_batch_images()
+        #         batch_loss += self.network.train_batch_ae_discriminator(real_images)[1]
+        #
+        #     train_losses.append(batch_loss/n_batches_train)
+        #
+        #     batch_loss = 0
+        #     for j in range(n_batches_valid):
+        #         real_images = self.valid_gen.get_batch_images()
+        #         batch_loss += self.network.train_batch_ae_discriminator(real_images, test=True)[1]
+        #
+        #     validation_losses.append(batch_loss/n_batches_valid)
 
         # self.losses[''] += train_losses
         # self.losses[''] += validation_losses
 
     def train_ae_gan(self, epochs=5, model_checkpoint=False):
         print('Training generator for {0} epochs.'.format(epochs))
-        if self.network.autoencoder_disc.trainable:
+        if self.network.autoencoder_disc.trainable is True:
             architecture.make_trainable(self.network.autoencoder_disc, False)
             self.network.autoencoder_gan_compile()
+            # self.network.autoencoder_disc_compile()
             # raise ValueError('Discriminator must not be trainable')
 
         history = self.network.autoencoder_gan.fit_generator(self.train_gen.generate_ae_gan_mo(),
@@ -223,10 +226,48 @@ class Experiment(object):
         if not os.path.exists(self.plots_folder):
             os.makedirs(self.plots_folder)
 
+    def adaptive_gan_train(self):
+        n_batches_valid = 16
+        for i in range(100):
+            acc = 0.0
+            while acc < 0.94:
+                print('Training discriminator')
+                loss = self.network.train_epoch_ae_discriminator(self.train_gen.get_batch_images, BATCHES_PER_EPOCH, noise=0.0)
+                acc = self.network.test_ae_discriminator(self.valid_gen.get_batch_images, n_batches_valid)
+                print('D loss:', loss)
+                print('D acc:', acc)
+
+            acc = 0
+            loss_recon = 1.0
+            while acc < 0.99 or loss_recon > 0.06:
+                print('Training generator')
+                history = self.network.autoencoder_gan.fit_generator(self.train_gen.generate_ae_gan_mo(),
+                                                                     samples_per_epoch=BATCHES_PER_EPOCH * BATCH_SIZE,
+                                                                     nb_epoch=1,
+                                                                     max_q_size=5,
+                                                                     validation_data=self.valid_gen.generate_ae_gan_mo(),
+                                                                     nb_val_samples=16 * BATCH_SIZE)
+                loss = history.history['val_loss'][-1]
+                acc = history.history['val_model_2_acc'][-1]
+                loss_recon = history.history['val_model_1_loss'][-1]
+                print('D loss:', loss)
+                print('D acc:', acc)
+                self.losses['ae_train'] += history.history['loss']
+                self.losses['ae_valid'] += history.history['val_loss']
+
+            self.save_ae_recons('GAN')
+
+            if not i % 10:
+                self.save_models()
+
     def run_experiment(self):
+        if 'adaptive_train' in self.output_folder:
+            self.adaptive_gan_train()
+
         if 'pure_gan' in self.output_folder:
+            # self.train_ae_gan(epochs=15)
             for i in range(100):
-                self.train_ae_disc(epochs=2)
+                self.train_ae_disc(epochs=8)
                 # time.sleep(3)
                 self.train_ae_gan(epochs=4)
                 # time.sleep(3)
