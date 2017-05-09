@@ -138,7 +138,7 @@ class Experiment(object):
         print('Training generator for {0} epochs.'.format(epochs))
         if self.network.autoencoder_disc.trainable:
             architecture.make_trainable(self.network.autoencoder_disc, False)
-            self.network.autoencoder_gan.compile(optimizer=Adam(lr=0.0002), loss='binary_crossentropy')
+            self.network.autoencoder_gan_compile()
             # raise ValueError('Discriminator must not be trainable')
 
         history = self.network.autoencoder_gan.fit_generator(self.train_gen.generate_ae_gan_mo(),

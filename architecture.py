@@ -149,7 +149,7 @@ class MultiNetwork(object):
         screen_disc = self.screen_discriminator(z_disc)
 
         self.autoencoder_disc = Model(input_img, screen_disc)
-        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy')
+        self.autoencoder_disc_compile()
         # self.autoencoder_disc.summary()
         plot(self.autoencoder_disc, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_disc'),
              show_layer_names=True,
@@ -159,12 +159,19 @@ class MultiNetwork(object):
         fakeness = self.autoencoder_disc(screen_recon)
 
         self.autoencoder_gan = Model(input=[input_img], output=[screen_recon, fakeness])
-        self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001), loss=['mse', 'binary_crossentropy'],
-                                     loss_weights=[0.5, 0.5])
+        self.autoencoder_gan_compile()
+
         # self.autoencoder_gan.summary()
         plot(self.autoencoder_gan, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_gan'),
              show_layer_names=True,
              show_shapes=True)
+
+    def autoencoder_disc_compile(self):
+        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy')
+
+    def autoencoder_gan_compile(self):
+        self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001), loss=['mse', 'binary_crossentropy'],
+                                     loss_weights=[0.5, 0.5], metrics=['accuracy'])
 
     def build_physics_predictor(self):
         return self
@@ -183,7 +190,7 @@ class MultiNetwork(object):
     def train_batch_ae_discriminator(self, real_images, test=False):
         if not self.autoencoder_disc.trainable:
             make_trainable(self.autoencoder_disc, True)
-            self.autoencoder_disc.compile(optimizer=Adam(lr=0.001), loss='binary_crossentropy')
+            self.autoencoder_disc_compile()
             # raise ValueError('Discriminator must be trainable')
 
         batch_size = 32
@@ -209,25 +216,25 @@ class MultiNetwork(object):
         loss /= 2
         return loss
 
-    def train_batch_ae_gan(self, real_images):
-        batch_size = 32
-
-        if self.autoencoder_disc.trainable:
-            make_trainable(self.autoencoder_disc, False)
-            self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy')
-            # raise ValueError('Discriminator must not be trainable')
-
-        labels = np.ones((batch_size,))
-
-        loss = self.autoencoder_gan.train_on_batch(real_images, labels)
-
-        return loss
-
-    def show_reconstruction(self):
-        return self
-
-    def show_predictions(self):
-        return self
+    # def train_batch_ae_gan(self, real_images):
+    #     batch_size = 32
+    #
+    #     if self.autoencoder_disc.trainable:
+    #         make_trainable(self.autoencoder_disc, False)
+    #         self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy')
+    #         # raise ValueError('Discriminator must not be trainable')
+    #
+    #     labels = np.ones((batch_size,))
+    #
+    #     loss = self.autoencoder_gan.train_on_batch(real_images, labels)
+    #
+    #     return loss
+    #
+    # def show_reconstruction(self):
+    #     return self
+    #
+    # def show_predictions(self):
+    #     return self
 
 
 if __name__ == '__main__':
