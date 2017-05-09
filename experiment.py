@@ -117,15 +117,16 @@ class Experiment(object):
                 batch_loss += self.network.train_batch_ae_discriminator(real_images)
 
             train_losses.append(batch_loss/n_batches_train)
-            print('disc train losses:', train_losses)
 
             batch_loss = 0
             for j in range(n_batches_valid):
-                real_images = self.train_gen.get_batch_images()
+                real_images = self.valid_gen.get_batch_images()
                 batch_loss += self.network.train_batch_ae_discriminator(real_images, test=True)
 
             validation_losses.append(batch_loss/n_batches_valid)
-            print('disc valid losses:', validation_losses)
+
+        print('disc train losses:', train_losses)
+        print('disc valid losses:', validation_losses)
 
         # self.losses[''] += train_losses
         # self.losses[''] += validation_losses

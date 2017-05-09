@@ -189,7 +189,7 @@ DECODER = {
 
 SCREEN_DISCRIMINATOR = {
         'name': 'scr_disc',
-        'input_shape': (1568,),
+        'input_shape': (V_SIZE,),
         'output_shape': (1,),
         'layers': [
             {

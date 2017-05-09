@@ -6,7 +6,7 @@ Class for large network with multiple branches, cost functions, training stages.
 import keras
 from keras.models import Model
 from keras.layers import Input
-from keras.optimizers import Adam, Adadelta, RMSprop
+from keras.optimizers import Adam, Adadelta, RMSprop, SGD
 from keras.utils.visualize_util import plot
 import tensorflow as tf
 import numpy as np
@@ -85,7 +85,7 @@ class MultiNetwork(object):
         self.encoder = self.build_branch(self.structure['encoder'])
         self.decoder = self.build_branch(self.structure['decoder'])
 
-        self.encoder_disc = self.build_branch(self.structure['shallow_encoder'])
+        self.encoder_disc = self.build_branch(self.structure['encoder'])
         self.screen_discriminator = self.build_branch(self.structure['screen_discriminator'])
 
         # self.physics_predictor = self.build_physics_predictor()
@@ -183,13 +183,13 @@ class MultiNetwork(object):
     def train_batch_ae_discriminator(self, real_images, test=False):
         if not self.autoencoder_disc.trainable:
             make_trainable(self.autoencoder_disc, True)
-            self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy')
+            self.autoencoder_disc.compile(optimizer=Adam(lr=0.001), loss='binary_crossentropy')
             # raise ValueError('Discriminator must be trainable')
 
-        batch_size = 64
+        batch_size = 32
 
-        labels = np.zeros((batch_size,))
-        labels[:int(batch_size/2)] = 1
+        # labels = np.zeros((batch_size,))
+        # labels[:int(batch_size/2)] = 1
 
         # indices = np.random.randint(0, real_images.shape[0], size=int(batch_size/2))
         # real = real_images[indices, ...]
@@ -197,13 +197,16 @@ class MultiNetwork(object):
         # generate fake images
         fake_images = self.autoencoder_gen.predict(real_images)
 
-        train = np.concatenate((real_images, fake_images))
+        # train = np.concatenate((real_images, fake_images))
 
         if test:
-            loss = self.autoencoder_disc.test_on_batch(train, labels)
+            loss = self.autoencoder_disc.test_on_batch(real_images, np.ones((batch_size))) + \
+                   self.autoencoder_disc.test_on_batch(fake_images, np.zeros((batch_size)))
         else:
-            loss = self.autoencoder_disc.train_on_batch(train, labels)
+            loss = self.autoencoder_disc.train_on_batch(real_images, np.ones((batch_size))) + \
+                   self.autoencoder_disc.train_on_batch(fake_images, np.zeros((batch_size)))
 
+        loss /= 2
         return loss
 
     def train_batch_ae_gan(self, real_images):
