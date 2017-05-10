@@ -15,6 +15,7 @@ from keras.optimizers import Adam, Adadelta, RMSprop
 import architecture
 import simple_network as network_params
 from simple_container import DataContainer
+from mnist_container import MNISTContainer
 
 EXPERIMENTS_FOLDER = 'experiments'
 DATA_FOLDER = 'data-toy'
@@ -32,7 +33,7 @@ BATCHES_PER_EPOCH = 600
 
 
 class Experiment(object):
-    def __init__(self, output_folder='adaptive_train', description='', epochs=200, **kwargs):
+    def __init__(self, output_folder='pure_ae', description='', epochs=200, mnist_run=True, **kwargs):
         datetag = datetime.datetime.now().strftime('%y-%m-%d_%H:%M')
         self.output_folder = '{0}/{1}_{2}'.format(EXPERIMENTS_FOLDER, output_folder, datetag)
         self.reconstructions_folder = '{0}/{1}'.format(self.output_folder, RECONSTRUCTIONS_FOLDER)
@@ -65,12 +66,21 @@ class Experiment(object):
 
         self.epochs = epochs
         self.batch_size = kwargs.get('batch_size', BATCH_SIZE)
-        self.train_gen = DataContainer(file_train, batch_size=self.batch_size,
-                                       im_shape=network_params.INPUT_IMAGE_SHAPE,
-                                       ep_len_read=20, episodes=1000)
-        self.valid_gen = DataContainer(file_valid, batch_size=self.batch_size,
-                                       im_shape=network_params.INPUT_IMAGE_SHAPE,
-                                       ep_len_read=20, episodes=200)
+
+        if mnist_run:
+            self.train_gen = MNISTContainer(batch_size=self.batch_size,
+                                            im_shape=network_params.INPUT_IMAGE_SHAPE,
+                                            valid=False)
+            self.valid_gen = MNISTContainer(batch_size=self.batch_size,
+                                            im_shape=network_params.INPUT_IMAGE_SHAPE,
+                                            valid=True)
+        else:
+            self.train_gen = DataContainer(file_train, batch_size=self.batch_size,
+                                           im_shape=network_params.INPUT_IMAGE_SHAPE,
+                                           ep_len_read=20, episodes=1000)
+            self.valid_gen = DataContainer(file_valid, batch_size=self.batch_size,
+                                           im_shape=network_params.INPUT_IMAGE_SHAPE,
+                                           ep_len_read=20, episodes=200)
 
         print('Containers started.')
 

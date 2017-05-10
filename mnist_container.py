@@ -27,7 +27,7 @@ class MNISTContainer(object):
 
         random_ims = self.images[rolls, ...]
 
-        return random_ims
+        return random_ims.reshape((n,) + self.im_shape)
 
     def get_batch_images(self):
         return self.get_n_random_images(self.batch_size)
