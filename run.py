@@ -16,6 +16,7 @@ import architecture
 import simple_network as network_params
 from simple_container import DataContainer
 from mnist_container import MNISTContainer
+from exp_container import ExperienceContainer
 
 EXPERIMENTS_FOLDER = 'experiments'
 DATA_FOLDER = 'data-toy'
@@ -33,7 +34,7 @@ BATCHES_PER_EPOCH = 600
 
 
 class Experiment(object):
-    def __init__(self, output_folder='pure_ae', description='', epochs=200, mnist_run=True, **kwargs):
+    def __init__(self, output_folder='pure_gan', description='', epochs=200, mnist_run=True, **kwargs):
         datetag = datetime.datetime.now().strftime('%y-%m-%d_%H:%M')
         self.output_folder = '{0}/{1}_{2}'.format(EXPERIMENTS_FOLDER, output_folder, datetag)
         self.reconstructions_folder = '{0}/{1}'.format(self.output_folder, RECONSTRUCTIONS_FOLDER)
@@ -81,6 +82,8 @@ class Experiment(object):
             self.valid_gen = DataContainer(file_valid, batch_size=self.batch_size,
                                            im_shape=network_params.INPUT_IMAGE_SHAPE,
                                            ep_len_read=20, episodes=200)
+
+        self.experience = ExperienceContainer()
 
         print('Containers started.')
 
@@ -152,7 +155,7 @@ class Experiment(object):
         print('Training generator for {0} epochs.'.format(epochs))
         if self.network.autoencoder_disc.trainable is True:
             architecture.make_trainable(self.network.autoencoder_disc, False)
-            self.network.compile_gan()
+            self.network.compile_gan_was()
             # self.network.autoencoder_disc_compile()
             # raise ValueError('Discriminator must not be trainable')
 
@@ -258,13 +261,20 @@ class Experiment(object):
         for i in range(1500):
             loss = 1.0
             acc = 0.0
-            while acc < 0.94:
+            while loss > -0.8:
             # while loss > 0.4 or acc < 0.9:
                 print('Training discriminator')
-                loss = self.network.train_epoch_ae_discriminator(self.train_gen.get_batch_images, BATCHES_PER_EPOCH, noise=0.0)
+                loss = self.network.train_epoch_ae_discriminator(self.train_gen.get_batch_images,
+                                                                 BATCHES_PER_EPOCH,
+                                                                 exp_cont=self.experience,
+                                                                 noise=0.0)
                 acc = self.network.test_ae_discriminator(self.valid_gen.get_batch_images, n_batches_valid)
+                acc_exp = self.network.test_ae_discriminator_experience(self.train_gen.get_batch_images,
+                                                                        self.experience,
+                                                                        batches=16)
                 print('D loss:', loss)
                 print('D acc:', acc)
+                print('D acc exp:', acc_exp)
 
             # self.network.autoencoder_disc_compile_ent()
             acc = 0
@@ -273,8 +283,10 @@ class Experiment(object):
             loss_ent = 1.0
             if self.network.autoencoder_disc.trainable is True:
                 architecture.make_trainable(self.network.autoencoder_disc, False)
-                self.network.compile_gan()
-            while acc < 0.92 or loss_recon > 0.02:
+                self.network.compile_gan_was()
+
+            while loss > -0.8:
+            # while acc < 0.92 or loss_recon > 0.02:
             # while loss_ent > 0.1:
                 print('Training generator')
                 history = self.network.autoencoder_gan.fit_generator(self.train_gen.generate_ae_gan_mo(),
@@ -306,7 +318,7 @@ class Experiment(object):
         if 'pure_gan' in self.output_folder:
             # self.train_ae_gan(epochs=15)
             for i in range(100):
-                self.train_ae_disc(epochs=8)
+                self.train_ae_disc(epochs=4)
                 # time.sleep(3)
                 self.train_ae_gan(epochs=4)
                 # time.sleep(3)

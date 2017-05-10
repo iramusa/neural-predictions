@@ -9,12 +9,15 @@ from keras.layers import Input
 from keras.optimizers import Adam, Adadelta, RMSprop, SGD
 from keras.utils.visualize_util import plot
 import tensorflow as tf
+import keras.backend as K
 import numpy as np
 
 import simple_network as network_params
 
 
 MODELS_FOLDER = 'models'
+REPLAY_RATE = 0.04
+RECORD_RATE = 0.004
 
 
 def make_trainable(model, trainable):
@@ -30,6 +33,15 @@ def make_trainable(model, trainable):
         if type(l) == type(model):
             make_trainable(l, trainable)
 
+
+def metric_acc(x, y):
+    correct = (x > 0) == (y > 0)
+    acc = np.mean(correct)
+    return acc
+
+def loss_wasserstein(y_true, y_pred):
+    loss = K.mean(y_true * y_pred)
+    return loss
 
 def loss_diff(y_true, y_pred):
     # true gradients
@@ -151,7 +163,7 @@ class MultiNetwork(object):
         screen_disc = self.screen_discriminator(z_disc)
 
         self.autoencoder_disc = Model(input_img, screen_disc)
-        self.compile_disc_mse()
+        self.compile_disc_was()
         # self.autoencoder_disc.summary()
         plot(self.autoencoder_disc, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_disc'),
              show_layer_names=True,
@@ -172,7 +184,10 @@ class MultiNetwork(object):
         # self.autoencoder_disc.compile(optimizer='sgd', loss='mse', metrics=['accuracy'])
         self.autoencoder_disc.compile(optimizer='adadelta', loss='mse', metrics=['accuracy'])
         # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002), loss='mse', metrics=['accuracy'])
-        # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy', metrics=['accuracy'])
+        # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002), loss=loss_wasserstein, metrics=['accuracy'])
+
+    def compile_disc_was(self):
+        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002), loss=loss_wasserstein, metrics=['accuracy'])
 
     def compile_disc_ent(self):
         self.autoencoder_disc.compile(optimizer='adadelta', loss='binary_crossentropy', metrics=['accuracy'])
@@ -180,7 +195,13 @@ class MultiNetwork(object):
     def compile_gan(self):
         self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001),
                                      loss=['mse', 'binary_crossentropy'],
-                                     loss_weights=[0.9, 0.1],
+                                     loss_weights=[0.0, 1.0],
+                                     metrics={'model_1': 'mse', 'model_2': 'accuracy'})
+
+    def compile_gan_was(self):
+        self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001),
+                                     loss=['mse', loss_wasserstein],
+                                     loss_weights=[0.0, 1.0],
                                      metrics={'model_1': 'mse', 'model_2': 'accuracy'})
 
     def build_physics_predictor(self):
@@ -197,21 +218,21 @@ class MultiNetwork(object):
         # 1) encoder/decoder
         return self
 
-    def train_epoch_ae_discriminator(self, batch_getter, batches_per_epoch, fake_rate=0.6, noise=0.25):
+    def train_epoch_ae_discriminator(self, batch_getter, batches_per_epoch, exp_cont=None, fake_rate=0.6, noise=0.25):
         fake_rate = 0.2 + 0.6*np.random.random()
         loss = 0
         for i in range(batches_per_epoch):
             fake = np.random.random() < fake_rate
             real_images = batch_getter()
-            loss += self.train_batch_ae_discriminator(real_images, fake=fake, noise=noise)[0]
+            loss += self.train_batch_ae_discriminator(real_images, fake=fake, noise=noise, exp_replayer=exp_cont)[0]
 
         av_loss = loss / batches_per_epoch
         return av_loss
 
-    def train_batch_ae_discriminator(self, real_images, fake, noise=0.25):
+    def train_batch_ae_discriminator(self, real_images, fake, exp_replayer=None, noise=0.0):
         if not self.autoencoder_disc.trainable:
             make_trainable(self.autoencoder_disc, True)
-            self.compile_disc_mse()
+            self.compile_disc_was()
             # self.autoencoder_gan_compile()
 
             # raise ValueError('Discriminator must be trainable')
@@ -219,14 +240,21 @@ class MultiNetwork(object):
         batch_size = real_images.shape[0]
 
         if fake:
-            images = self.autoencoder_gen.predict(real_images)
-            labels = np.zeros(batch_size)
+            if exp_replayer is not None and exp_replayer.is_ready() and np.random.random() < REPLAY_RATE:
+                images = exp_replayer.get_batch()
+                # print('replaying!')
+            else:
+                images = self.autoencoder_gen.predict(real_images)
+                if exp_replayer is not None and np.random.random() < RECORD_RATE:
+                    exp_replayer.add_batch(images)
+                    # print('recording!')
+            labels = -np.ones(batch_size)
         else:
             images = real_images
             labels = np.ones(batch_size)
 
-        # loss = self.autoencoder_disc.train_on_batch(images, labels)
-        loss = self.autoencoder_disc.train_on_batch(images, labels + noise*np.random.randn(batch_size))
+        loss = self.autoencoder_disc.train_on_batch(images, labels)
+        # loss = self.autoencoder_disc.train_on_batch(images, labels + noise*np.random.randn(batch_size))
 
         return loss
 
@@ -239,15 +267,47 @@ class MultiNetwork(object):
             fake_images = self.autoencoder_gen.predict(real_images)
             images = np.concatenate((real_images, fake_images))
             batch_size = images.shape[0]
-            labels = np.zeros(batch_size)
+            labels = -np.ones(batch_size)
             labels[0:batch_size//2] = 1
 
             # todo: accumulate list, not scalar
-            correct = np.round(self.autoencoder_disc.predict(images)).astype('int').reshape(batch_size) == labels
-            acc += np.sum(correct)/batch_size
+            # correct = np.round(self.autoencoder_disc.predict(images)).astype('int').reshape(batch_size) == -labels
+            x = self.autoencoder_disc.predict(images).reshape(batch_size)
+            y = -labels
+            # correct = (self.autoencoder_disc.predict(images).reshape(batch_size) > 0) == (-labels > 0)
+            # acc += np.sum(correct)/batch_size
+            acc += metric_acc(x, y)
             # loss += self.autoencoder_disc.test_on_batch(images, labels)[1]
 
         av_acc = acc / (batches//2)
+        # av_loss = loss / (batches//2)
+        return av_acc
+
+    def test_ae_discriminator_experience(self, batch_getter, exp_replayer, batches):
+        if not exp_replayer.is_ready():
+            return 0
+
+        loss = 0
+        acc = 0
+
+        for i in range(batches // 2):
+            real_images = batch_getter()
+            fake_images = exp_replayer.get_batch()
+            images = np.concatenate((real_images, fake_images))
+            batch_size = images.shape[0]
+            labels = -np.ones(batch_size)
+            labels[0:batch_size // 2] = 1
+
+            # todo: accumulate list, not scalar
+            # correct = np.round(self.autoencoder_disc.predict(images)).astype('int').reshape(batch_size) == -labels
+            x = self.autoencoder_disc.predict(images).reshape(batch_size)
+            y = -labels
+            # correct = (self.autoencoder_disc.predict(images).reshape(batch_size) > 0) == (-labels > 0)
+            # acc += np.sum(correct)/batch_size
+            acc += metric_acc(x, y)
+            # loss += self.autoencoder_disc.test_on_batch(images, labels)[1]
+
+        av_acc = acc / (batches // 2)
         # av_loss = loss / (batches//2)
         return av_acc
 
