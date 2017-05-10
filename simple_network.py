@@ -1,5 +1,5 @@
 from keras.layers import Input, Dense, Convolution2D, Deconvolution2D, MaxPooling2D,\
-    UpSampling2D, Merge, LSTM, Flatten, ZeroPadding2D, Reshape, BatchNormalization
+    UpSampling2D, Merge, LSTM, Flatten, ZeroPadding2D, Reshape, BatchNormalization, Dropout
 from keras.layers.advanced_activations import LeakyReLU
 
 
@@ -9,7 +9,7 @@ IMAGE_CHANNELS = 1
 
 INPUT_IMAGE_SHAPE = (IMAGE_SIZE_Y, IMAGE_SIZE_X, IMAGE_CHANNELS)
 
-V_SIZE = 64
+V_SIZE = 1024
 
 POSITIONAL_ARGS = 'pos_args'
 KEYWORD_ARGS = 'key_args'
@@ -21,14 +21,21 @@ ENCODER = {
         'layers': [
             {
                 'type': Convolution2D,
-                POSITIONAL_ARGS: [8, 3, 3],
+                POSITIONAL_ARGS: [64, 5, 5],
                 KEYWORD_ARGS : {
                     'subsample': (2, 2),
-                    'activation': 'relu',
+                    # 'activation': 'relu',
+                    'activation': LeakyReLU(0.2),
                     'init': 'glorot_normal',
                     'border_mode': 'same'
                 }
             },
+            # {
+            #     'type': Dropout,
+            #     KEYWORD_ARGS: {
+            #         'p': 0.3,
+            #     }
+            # },
             {
                 'type': BatchNormalization,
                 KEYWORD_ARGS: {
@@ -40,11 +47,18 @@ ENCODER = {
                 POSITIONAL_ARGS: [8, 3, 3],
                 KEYWORD_ARGS : {
                     'subsample': (2, 2),
-                    'activation': 'relu',
+                    # 'activation': 'relu',
+                    'activation': LeakyReLU(0.2),
                     'init': 'glorot_normal',
                     'border_mode': 'same'
                 }
             },
+            # {
+            #     'type': Dropout,
+            #     KEYWORD_ARGS: {
+            #         'p': 0.3,
+            #     }
+            # },
             {
                 'type': Flatten,
             },
@@ -58,7 +72,8 @@ ENCODER = {
                 'type': Dense,
                 POSITIONAL_ARGS: [V_SIZE],
                 KEYWORD_ARGS: {
-                    'activation': 'relu',
+                    # 'activation': 'relu',
+                    'activation': LeakyReLU(0.2),
                     'init': 'uniform',
                 }
             },
@@ -78,11 +93,12 @@ DECODER = {
             },
             {
                 'type': Dense,
-                POSITIONAL_ARGS: [7*7*8],
+                POSITIONAL_ARGS: [7*7*128],
                 'output_dim': 7*7*8,
                 KEYWORD_ARGS: {
                     'init': 'glorot_normal',
-                    'activation': 'relu',
+                    # 'activation': 'relu',
+                    'activation': LeakyReLU(0.2),
                 }
             },
             {
@@ -93,8 +109,8 @@ DECODER = {
             },
             {
                 'type': Reshape,
-                POSITIONAL_ARGS: [(7, 7, 8)],
-                'shape': (7, 7, 8),
+                POSITIONAL_ARGS: [(7, 7, 128)],
+                'shape': (7, 7, 128),
             },
             {
                 'type': UpSampling2D,
@@ -104,10 +120,11 @@ DECODER = {
 
             {
                 'type': Convolution2D,
-                POSITIONAL_ARGS: [8, 3, 3],
+                POSITIONAL_ARGS: [64, 5, 5],
                 KEYWORD_ARGS : {
                     'init': 'glorot_normal',
-                    'activation': 'relu',
+                    # 'activation': 'relu',
+                    'activation': LeakyReLU(0.2),
                     'border_mode': 'same'
 
                 }
@@ -125,7 +142,7 @@ DECODER = {
 
             {
                 'type': Convolution2D,
-                POSITIONAL_ARGS: [1, 3, 3],
+                POSITIONAL_ARGS: [1, 5, 5],
                 KEYWORD_ARGS: {
                     'init': 'glorot_normal',
                     'activation': 'sigmoid',
@@ -232,20 +249,27 @@ ENCODER_SHALLOW = {
     }
 
 ENCODER_DISCRIMINATOR = {
-        'name': 'conv4',
+        'name': 'enc_disc',
         'input_shape': INPUT_IMAGE_SHAPE,
-        'output_shape': (V_SIZE,),
+        'output_shape': (1,),
         'layers': [
             {
                 'type': Convolution2D,
-                POSITIONAL_ARGS: [8, 5, 5],
-                KEYWORD_ARGS : {
+                POSITIONAL_ARGS: [64, 5, 5],
+                KEYWORD_ARGS: {
                     'subsample': (2, 2),
-                    'activation': 'relu',
+                    # 'activation': 'relu',
+                    'activation': LeakyReLU(0.2),
                     'init': 'glorot_normal',
                     'border_mode': 'same'
                 }
             },
+            # {
+            #     'type': Dropout,
+            #     KEYWORD_ARGS: {
+            #         'p': 0.3,
+            #     }
+            # },
             {
                 'type': BatchNormalization,
                 KEYWORD_ARGS: {
@@ -254,14 +278,21 @@ ENCODER_DISCRIMINATOR = {
             },
             {
                 'type': Convolution2D,
-                POSITIONAL_ARGS: [8, 4, 4],
-                KEYWORD_ARGS : {
+                POSITIONAL_ARGS: [8, 3, 3],
+                KEYWORD_ARGS: {
                     'subsample': (2, 2),
-                    'activation': 'relu',
+                    # 'activation': 'relu',
+                    'activation': LeakyReLU(0.2),
                     'init': 'glorot_normal',
                     'border_mode': 'same'
                 }
             },
+            # {
+            #     'type': Dropout,
+            #     KEYWORD_ARGS: {
+            #         'p': 0.3,
+            #     }
+            # },
             {
                 'type': Flatten,
             },
@@ -273,15 +304,14 @@ ENCODER_DISCRIMINATOR = {
             },
             {
                 'type': Dense,
-                POSITIONAL_ARGS: [V_SIZE],
+                POSITIONAL_ARGS: [1],
                 KEYWORD_ARGS: {
-                    'activation': 'relu',
+                    'activation': 'tanh',
                     'init': 'uniform',
                 }
             },
         ],
     }
-
 
 DEFAULT_STRUCTURE = {
     'encoder': ENCODER,
