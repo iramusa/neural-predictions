@@ -16,7 +16,7 @@ import simple_network as network_params
 
 
 MODELS_FOLDER = 'models'
-REPLAY_RATE = 0.04
+REPLAY_RATE = 0.08
 RECORD_RATE = 0.0005
 
 
@@ -99,8 +99,8 @@ class MultiNetwork(object):
         self.encoder = self.build_branch(self.structure['encoder'])
         self.decoder = self.build_branch(self.structure['decoder'])
 
-        self.encoder_disc = self.build_branch(self.structure['encoder'])
-        self.screen_discriminator = self.build_branch(self.structure['screen_discriminator'])
+        self.encoder_disc = self.build_branch(self.structure['encoder_discriminator'])
+        # self.screen_discriminator = self.build_branch(self.structure['screen_discriminator'])
 
         # self.physics_predictor = self.build_physics_predictor()
         # self.action_mapper = self.build_action_mapper()
@@ -159,8 +159,9 @@ class MultiNetwork(object):
 
     def build_ae_gan(self):
         input_img = Input(shape=network_params.INPUT_IMAGE_SHAPE)
-        z_disc = self.encoder_disc(input_img)
-        screen_disc = self.screen_discriminator(z_disc)
+        # z_disc = self.encoder_disc(input_img)
+        screen_disc = self.encoder_disc(input_img)
+        # screen_disc = self.screen_discriminator(z_disc)
 
         self.autoencoder_disc = Model(input_img, screen_disc)
         self.compile_disc_was()
@@ -173,7 +174,7 @@ class MultiNetwork(object):
         fakeness = self.autoencoder_disc(screen_recon)
 
         self.autoencoder_gan = Model(input=[input_img], output=[screen_recon, fakeness])
-        self.compile_gan()
+        self.compile_gan_was()
 
         # self.autoencoder_gan.summary()
         plot(self.autoencoder_gan, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_gan'),
@@ -187,7 +188,7 @@ class MultiNetwork(object):
         # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002), loss=loss_wasserstein, metrics=['accuracy'])
 
     def compile_disc_was(self):
-        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002), loss=loss_wasserstein, metrics=['accuracy'])
+        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss=loss_wasserstein, metrics=['accuracy'])
 
     def compile_disc_ent(self):
         self.autoencoder_disc.compile(optimizer='adadelta', loss='binary_crossentropy', metrics=['accuracy'])

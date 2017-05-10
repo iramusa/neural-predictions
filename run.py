@@ -227,8 +227,8 @@ class Experiment(object):
         self.network.decoder.save_weights(fpath)
         fpath = '{0}/autoencoder_disc_{1}.hdf5'.format(self.models_folder, epochs_so_far)
         self.network.autoencoder_disc.save_weights(fpath)
-        fpath = '{0}/screen_discriminator_{1}.hdf5'.format(self.models_folder, epochs_so_far)
-        self.network.screen_discriminator.save_weights(fpath)
+        # fpath = '{0}/screen_discriminator_{1}.hdf5'.format(self.models_folder, epochs_so_far)
+        # self.network.screen_discriminator.save_weights(fpath)
 
     def load_models(self, tag):
         print('Loading models')
@@ -238,8 +238,8 @@ class Experiment(object):
         self.network.decoder.load_weights(fpath)
         fpath = '{0}/autoencoder_disc_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
         self.network.autoencoder_disc.load_weights(fpath)
-        fpath = '{0}/screen_discriminator_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
-        self.network.screen_discriminator.load_weights(fpath)
+        # fpath = '{0}/screen_discriminator_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
+        # self.network.screen_discriminator.load_weights(fpath)
 
     def finish(self):
         print('Finishing.')
@@ -261,8 +261,9 @@ class Experiment(object):
         for i in range(1500):
             loss = 1.0
             acc = 0.0
-            while loss > -0.8:
-            # while loss > 0.4 or acc < 0.9:
+            loss_line = 0.9
+            while loss > -loss_line:
+                loss_line -= 0.01
                 print('Training discriminator')
                 loss = self.network.train_epoch_ae_discriminator(self.train_gen.get_batch_images,
                                                                  BATCHES_PER_EPOCH,
@@ -285,7 +286,10 @@ class Experiment(object):
                 architecture.make_trainable(self.network.autoencoder_disc, False)
                 self.network.compile_gan_was()
 
-            while loss > -0.8:
+
+            loss_line = 0.9
+            while loss > -loss_line:
+                loss_line -= 0.01
             # while acc < 0.92 or loss_recon > 0.02:
             # while loss_ent > 0.1:
                 print('Training generator')
@@ -295,9 +299,9 @@ class Experiment(object):
                                                                      max_q_size=5,
                                                                      validation_data=self.valid_gen.generate_ae_gan_mo(),
                                                                      nb_val_samples=16 * BATCH_SIZE)
-                loss = history.history['val_loss'][-1]
+                loss_tot = history.history['val_loss'][-1]
                 acc = history.history['val_model_2_acc'][-1]
-                loss_ent = history.history['val_model_2_loss'][-1]
+                loss = history.history['val_model_2_loss'][-1]
                 loss_recon = history.history['val_model_1_loss'][-1]
                 print('D loss:', loss)
                 print('D acc:', acc)

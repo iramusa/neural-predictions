@@ -30,12 +30,12 @@ class ExperienceContainer(object):
     def generate_ae_gan(self):
         while True:
             images = self.get_batch()
-            labels = -np.ones((images.shape[0],))
+            labels = np.ones((images.shape[0],))
             yield (images, labels)
 
     def generate_ae_gan_mo(self):
         while True:
             images = self.get_batch()
-            labels = -np.ones((images.shape[0],))
+            labels = np.ones((images.shape[0],))
             yield (images, [images, labels])
 
