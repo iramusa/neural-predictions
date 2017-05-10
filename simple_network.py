@@ -210,7 +210,7 @@ SCREEN_DISCRIMINATOR = {
         ],
     }
 
-SHALLOW_ENCODER = {
+ENCODER_SHALLOW = {
         'name': 'sh_enc',
         'input_shape': INPUT_IMAGE_SHAPE,
         'output_shape': (1568,),
@@ -231,17 +231,17 @@ SHALLOW_ENCODER = {
         ],
     }
 
-DISC_ENCODER = {
+ENCODER_DISCRIMINATOR = {
         'name': 'conv4',
         'input_shape': INPUT_IMAGE_SHAPE,
         'output_shape': (V_SIZE,),
         'layers': [
             {
                 'type': Convolution2D,
-                POSITIONAL_ARGS: [8, 3, 3],
+                POSITIONAL_ARGS: [8, 5, 5],
                 KEYWORD_ARGS : {
                     'subsample': (2, 2),
-                    'activation': LeakyReLU(alpha=0.3),
+                    'activation': 'relu',
                     'init': 'glorot_normal',
                     'border_mode': 'same'
                 }
@@ -254,10 +254,10 @@ DISC_ENCODER = {
             },
             {
                 'type': Convolution2D,
-                POSITIONAL_ARGS: [8, 3, 3],
+                POSITIONAL_ARGS: [8, 4, 4],
                 KEYWORD_ARGS : {
                     'subsample': (2, 2),
-                    'activation': LeakyReLU(alpha=0.3),
+                    'activation': 'relu',
                     'init': 'glorot_normal',
                     'border_mode': 'same'
                 }
@@ -275,7 +275,7 @@ DISC_ENCODER = {
                 'type': Dense,
                 POSITIONAL_ARGS: [V_SIZE],
                 KEYWORD_ARGS: {
-                    'activation': LeakyReLU(alpha=0.3),
+                    'activation': 'relu',
                     'init': 'uniform',
                 }
             },
@@ -287,6 +287,6 @@ DEFAULT_STRUCTURE = {
     'encoder': ENCODER,
     'decoder': DECODER,
     'screen_discriminator': SCREEN_DISCRIMINATOR,
-    'shallow_encoder': SHALLOW_ENCODER,
-    'disc_encoder': DISC_ENCODER,
+    'encoder_shallow': ENCODER_SHALLOW,
+    'encoder_discriminator': ENCODER_DISCRIMINATOR,
 }

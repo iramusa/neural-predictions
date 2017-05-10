@@ -38,16 +38,16 @@ def loss_diff(y_true, y_pred):
     grad_pred_y = y_pred[:-1, :] - y_pred[1:, :]
     grad_pred_x = y_pred[:, :-1] - y_pred[:, 1:]
 
-    grad_cost = tf.reduce_mean(tf.abs(grad_true_x - grad_pred_x)) + tf.reduce_sum(tf.reduce_mean(grad_true_y - grad_pred_y))
+    grad_cost = tf.reduce_mean(tf.abs(grad_true_x - grad_pred_x)) + tf.reduce_mean(tf.abs(grad_true_y - grad_pred_y))
 
-    return grad_cost *0.1
+    return grad_cost
 
 
 def sq_diff_loss(y_true, y_pred):
     mse = keras.objectives.mean_squared_error(y_true, y_pred)
     grad = loss_diff(y_true, y_pred)
 
-    return mse + grad
+    return 0.9*mse + 0.1*grad
 
 
 class MultiNetwork(object):
@@ -151,7 +151,7 @@ class MultiNetwork(object):
         screen_disc = self.screen_discriminator(z_disc)
 
         self.autoencoder_disc = Model(input_img, screen_disc)
-        self.autoencoder_disc_compile_mse()
+        self.compile_disc_mse()
         # self.autoencoder_disc.summary()
         plot(self.autoencoder_disc, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_disc'),
              show_layer_names=True,
@@ -161,25 +161,27 @@ class MultiNetwork(object):
         fakeness = self.autoencoder_disc(screen_recon)
 
         self.autoencoder_gan = Model(input=[input_img], output=[screen_recon, fakeness])
-        self.autoencoder_gan_compile()
+        self.compile_gan()
 
         # self.autoencoder_gan.summary()
         plot(self.autoencoder_gan, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_gan'),
              show_layer_names=True,
              show_shapes=True)
 
-    def autoencoder_disc_compile_mse(self):
+    def compile_disc_mse(self):
         # self.autoencoder_disc.compile(optimizer='sgd', loss='mse', metrics=['accuracy'])
         self.autoencoder_disc.compile(optimizer='adadelta', loss='mse', metrics=['accuracy'])
         # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002), loss='mse', metrics=['accuracy'])
         # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy', metrics=['accuracy'])
 
-    def autoencoder_disc_compile_ent(self):
-        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss='binary_crossentropy', metrics=['accuracy'])
+    def compile_disc_ent(self):
+        self.autoencoder_disc.compile(optimizer='adadelta', loss='binary_crossentropy', metrics=['accuracy'])
 
-    def autoencoder_gan_compile(self):
-        self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001), loss=['mse', 'binary_crossentropy'],
-                                     loss_weights=[0.96, 0.4], metrics=['accuracy'])
+    def compile_gan(self):
+        self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001),
+                                     loss=['mse', 'binary_crossentropy'],
+                                     loss_weights=[0.9, 0.1],
+                                     metrics={'model_1': 'mse', 'model_2': 'accuracy'})
 
     def build_physics_predictor(self):
         return self
@@ -209,7 +211,7 @@ class MultiNetwork(object):
     def train_batch_ae_discriminator(self, real_images, fake, noise=0.25):
         if not self.autoencoder_disc.trainable:
             make_trainable(self.autoencoder_disc, True)
-            self.autoencoder_disc_compile_mse()
+            self.compile_disc_mse()
             # self.autoencoder_gan_compile()
 
             # raise ValueError('Discriminator must be trainable')

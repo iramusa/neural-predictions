@@ -21,6 +21,7 @@ DATA_FOLDER = 'data-toy'
 RECONSTRUCTIONS_FOLDER = 'reconstructions'
 PLOTS_FOLDER = 'plots'
 MODELS_FOLDER = 'models'
+LOAD_MODELS_FOLDER = 'load_models'
 LOG_TO_FILE = False
 LOG_FILE = 'log.log'
 ERR_FILE = 'err.log'
@@ -98,6 +99,7 @@ class Experiment(object):
 
         self.save_losses()
         self.save_ae_recons('AE')
+        self.save_models()
 
         if model_checkpoint:
             epochs_so_far = len(self.losses['ae_train'])
@@ -140,7 +142,7 @@ class Experiment(object):
         print('Training generator for {0} epochs.'.format(epochs))
         if self.network.autoencoder_disc.trainable is True:
             architecture.make_trainable(self.network.autoencoder_disc, False)
-            self.network.autoencoder_gan_compile()
+            self.network.compile_gan()
             # self.network.autoencoder_disc_compile()
             # raise ValueError('Discriminator must not be trainable')
 
@@ -156,6 +158,7 @@ class Experiment(object):
 
         # self.save_losses()
         self.save_ae_recons('GAN')
+        self.save_models()
 
         if model_checkpoint:
             epochs_so_far = len(self.losses['ae_train'])
@@ -203,13 +206,27 @@ class Experiment(object):
         print('NOT Generating plots.')
 
     def save_models(self):
-        print('Saving final models')
-        fpath = '{0}/encoder_final.hdf5'.format(self.models_folder)
+        epochs_so_far = len(self.losses['ae_train'])
+        print('Saving models after {0} epochs'.format(epochs_so_far))
+        fpath = '{0}/encoder_{1}.hdf5'.format(self.models_folder, epochs_so_far)
         self.network.encoder.save_weights(fpath)
-        fpath = '{0}/decoder_final.hdf5'.format(self.models_folder)
+        fpath = '{0}/decoder_{1}.hdf5'.format(self.models_folder, epochs_so_far)
         self.network.decoder.save_weights(fpath)
-        fpath = '{0}/autoencoder_disc_final.hdf5'.format(self.models_folder)
+        fpath = '{0}/autoencoder_disc_{1}.hdf5'.format(self.models_folder, epochs_so_far)
         self.network.autoencoder_disc.save_weights(fpath)
+        fpath = '{0}/screen_discriminator_{1}.hdf5'.format(self.models_folder, epochs_so_far)
+        self.network.screen_discriminator.save_weights(fpath)
+
+    def load_models(self, tag):
+        print('Loading models')
+        fpath = '{0}/encoder_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
+        self.network.encoder.load_weights(fpath)
+        fpath = '{0}/decoder_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
+        self.network.decoder.load_weights(fpath)
+        fpath = '{0}/autoencoder_disc_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
+        self.network.autoencoder_disc.load_weights(fpath)
+        fpath = '{0}/screen_discriminator_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
+        self.network.screen_discriminator.load_weights(fpath)
 
     def finish(self):
         print('Finishing.')
@@ -227,19 +244,28 @@ class Experiment(object):
             os.makedirs(self.plots_folder)
 
     def adaptive_gan_train(self):
-        n_batches_valid = 16
-        for i in range(100):
+        n_batches_valid = 64
+        for i in range(1500):
+            loss = 1.0
             acc = 0.0
             while acc < 0.94:
+            # while loss > 0.4 or acc < 0.9:
                 print('Training discriminator')
                 loss = self.network.train_epoch_ae_discriminator(self.train_gen.get_batch_images, BATCHES_PER_EPOCH, noise=0.0)
                 acc = self.network.test_ae_discriminator(self.valid_gen.get_batch_images, n_batches_valid)
                 print('D loss:', loss)
                 print('D acc:', acc)
 
+            # self.network.autoencoder_disc_compile_ent()
             acc = 0
             loss_recon = 1.0
-            while acc < 0.99 or loss_recon > 0.06:
+            loss = 1.0
+            loss_ent = 1.0
+            if self.network.autoencoder_disc.trainable is True:
+                architecture.make_trainable(self.network.autoencoder_disc, False)
+                self.network.compile_gan()
+            while acc < 0.92 or loss_recon > 0.02:
+            # while loss_ent > 0.1:
                 print('Training generator')
                 history = self.network.autoencoder_gan.fit_generator(self.train_gen.generate_ae_gan_mo(),
                                                                      samples_per_epoch=BATCHES_PER_EPOCH * BATCH_SIZE,
@@ -249,6 +275,7 @@ class Experiment(object):
                                                                      nb_val_samples=16 * BATCH_SIZE)
                 loss = history.history['val_loss'][-1]
                 acc = history.history['val_model_2_acc'][-1]
+                loss_ent = history.history['val_model_2_loss'][-1]
                 loss_recon = history.history['val_model_1_loss'][-1]
                 print('D loss:', loss)
                 print('D acc:', acc)
@@ -262,6 +289,8 @@ class Experiment(object):
 
     def run_experiment(self):
         if 'adaptive_train' in self.output_folder:
+            for i in range(10):
+                self.train_ae(epochs=10)
             self.adaptive_gan_train()
 
         if 'pure_gan' in self.output_folder:
