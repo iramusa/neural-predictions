@@ -17,7 +17,7 @@ import simple_network as network_params
 
 MODELS_FOLDER = 'models'
 REPLAY_RATE = 0.04
-RECORD_RATE = 0.004
+RECORD_RATE = 0.0005
 
 
 def make_trainable(model, trainable):
