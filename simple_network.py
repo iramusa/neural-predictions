@@ -204,7 +204,7 @@ SCREEN_DISCRIMINATOR = {
                 POSITIONAL_ARGS: [1],
                 KEYWORD_ARGS: {
                     'init': 'glorot_normal',
-                    'activation': 'sigmoid',
+                    'activation': 'tanh',
                 }
             },
         ],
