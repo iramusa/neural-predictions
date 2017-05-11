@@ -9,8 +9,7 @@ import numpy as np
 import pandas as pd
 import time
 from PIL import Image
-from keras.optimizers import Adam, Adadelta, RMSprop
-# from scipy.misc import imsave
+import matplotlib.pyplot as plt
 
 import architecture
 import simple_network as network_params
@@ -31,6 +30,8 @@ ERR_FILE = 'err.log'
 GAME = 'simple'
 BATCH_SIZE = 32
 BATCHES_PER_EPOCH = 600
+
+
 
 
 class Experiment(object):
@@ -89,6 +90,9 @@ class Experiment(object):
 
         self.network = architecture.MultiNetwork(models_folder=self.models_folder)
         print('Networks built.')
+
+        self.d_losses = []
+        self.g_losses = []
 
         self.losses = {'ae_train': [],
                        'ae_valid': [],
@@ -179,11 +183,23 @@ class Experiment(object):
             fpath = '{0}/ae_gen_{1}.hdf5'.format(self.models_folder, epochs_so_far)
             self.network.autoencoder_gen.save_weights(fpath)
 
-    def save_ae_recons(self, label):
+    def train_gan_simple(self, epochs=50):
+        for i in range(epochs):
+            print('Epoch ', i)
+            d_loss, g_loss = self.network.train_epoch_gan_simple(self.train_gen.get_batch_images, 60)
+            self.d_losses.append(d_loss)
+            self.g_losses.append(g_loss)
+
+            if i % 5 == 0:
+                self.plot_losses()
+                self.save_ae_recons('gan', len(self.d_losses))
+
+    def save_ae_recons(self, label, count=None):
         N_SAMPLES = 5
         im_med = self.train_gen.im_med
         im_valid = self.valid_gen.get_batch_images()
-        im_recon = self.network.autoencoder_gen.predict(im_valid)
+        noise = np.random.random((im_valid.shape[0], network_params.NOISE_SIZE))
+        im_recon = self.network.autoencoder_gen.predict([im_valid, noise])
 
         # print('im_valid', im_valid.shape)
         # print('im_recon', im_recon.shape)
@@ -202,7 +218,10 @@ class Experiment(object):
         if tiled.shape[2] == 1:
             tiled = tiled.reshape(tiled.shape[:2])
 
-        epochs_so_far = len(self.losses['ae_train'])
+        if count is None:
+            epochs_so_far = len(self.losses['ae_train'])
+        else:
+            epochs_so_far = count
         print('Saving new reconstructions after {0} epochs.'.format(epochs_so_far))
         # imsave('{0}/{1}.png'.format(self.reconstructions_folder, epochs_so_far), tiled)
 
@@ -214,6 +233,16 @@ class Experiment(object):
         # TODO arrays must be the same lengths to use this constructor
         losses = pd.DataFrame.from_dict(self.losses)
         losses.to_csv('{0}/losses.csv'.format(self.output_folder))
+
+    def plot_losses(self):
+        epoch = len(self.d_losses)
+        plt.figure(figsize=(10, 8))
+        plt.plot(self.d_losses, label='Discriminitive loss')
+        plt.plot(self.g_losses, label='Generative loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.savefig('{0}/gan_loss_epoch_{1}.png'.format(self.plots_folder, epoch))
 
     def save_plots(self):
         print('NOT Generating plots.')

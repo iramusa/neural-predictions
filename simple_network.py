@@ -9,7 +9,8 @@ IMAGE_CHANNELS = 1
 
 INPUT_IMAGE_SHAPE = (IMAGE_SIZE_Y, IMAGE_SIZE_X, IMAGE_CHANNELS)
 
-V_SIZE = 1024
+V_SIZE = 128
+NOISE_SIZE = 128
 
 POSITIONAL_ARGS = 'pos_args'
 KEYWORD_ARGS = 'key_args'
@@ -82,31 +83,31 @@ ENCODER = {
 
 DECODER = {
         'name': 'deconv4',
-        'input_shape': (V_SIZE,),
+        'input_shape': (V_SIZE + NOISE_SIZE,),
         'output_shape': INPUT_IMAGE_SHAPE,
         'layers': [
-            {
-                'type': BatchNormalization,
-                KEYWORD_ARGS: {
-                    'mode': 2,
-                }
-            },
+            # {
+            #     'type': BatchNormalization,
+            #     KEYWORD_ARGS: {
+            #         'mode': 2,
+            #     }
+            # },
             {
                 'type': Dense,
                 POSITIONAL_ARGS: [7*7*128],
-                'output_dim': 7*7*8,
+                'output_dim': 7*7*128,
                 KEYWORD_ARGS: {
                     'init': 'glorot_normal',
                     # 'activation': 'relu',
                     'activation': LeakyReLU(0.2),
                 }
             },
-            {
-                'type': BatchNormalization,
-                KEYWORD_ARGS: {
-                    'mode': 2,
-                }
-            },
+            # {
+            #     'type': BatchNormalization,
+            #     KEYWORD_ARGS: {
+            #         'mode': 2,
+            #     }
+            # },
             {
                 'type': Reshape,
                 POSITIONAL_ARGS: [(7, 7, 128)],
@@ -129,12 +130,12 @@ DECODER = {
 
                 }
             },
-            {
-                'type': BatchNormalization,
-                KEYWORD_ARGS: {
-                    'mode': 2,
-                }
-            },
+            # {
+            #     'type': BatchNormalization,
+            #     KEYWORD_ARGS: {
+            #         'mode': 2,
+            #     }
+            # },
             {
                 'type': UpSampling2D,
                 POSITIONAL_ARGS: [(2, 2)]
@@ -264,21 +265,21 @@ ENCODER_DISCRIMINATOR = {
                     'border_mode': 'same'
                 }
             },
+            {
+                'type': Dropout,
+                KEYWORD_ARGS: {
+                    'p': 0.3,
+                }
+            },
             # {
-            #     'type': Dropout,
+            #     'type': BatchNormalization,
             #     KEYWORD_ARGS: {
-            #         'p': 0.3,
+            #         'mode': 2,
             #     }
             # },
             {
-                'type': BatchNormalization,
-                KEYWORD_ARGS: {
-                    'mode': 2,
-                }
-            },
-            {
                 'type': Convolution2D,
-                POSITIONAL_ARGS: [8, 3, 3],
+                POSITIONAL_ARGS: [128, 3, 3],
                 KEYWORD_ARGS: {
                     'subsample': (2, 2),
                     # 'activation': 'relu',
@@ -287,26 +288,26 @@ ENCODER_DISCRIMINATOR = {
                     'border_mode': 'same'
                 }
             },
-            # {
-            #     'type': Dropout,
-            #     KEYWORD_ARGS: {
-            #         'p': 0.3,
-            #     }
-            # },
+            {
+                'type': Dropout,
+                KEYWORD_ARGS: {
+                    'p': 0.3,
+                }
+            },
             {
                 'type': Flatten,
             },
-            {
-                'type': BatchNormalization,
-                KEYWORD_ARGS: {
-                    'mode': 2,
-                }
-            },
+            # {
+            #     'type': BatchNormalization,
+            #     KEYWORD_ARGS: {
+            #         'mode': 2,
+            #     }
+            # },
             {
                 'type': Dense,
                 POSITIONAL_ARGS: [1],
                 KEYWORD_ARGS: {
-                    'activation': 'tanh',
+                    'activation': 'sigmoid',
                     'init': 'uniform',
                 }
             },

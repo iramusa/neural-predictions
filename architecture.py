@@ -5,12 +5,13 @@ Class for large network with multiple branches, cost functions, training stages.
 
 import keras
 from keras.models import Model
-from keras.layers import Input
+from keras.layers import Input, merge, Dense
 from keras.optimizers import Adam, Adadelta, RMSprop, SGD
 from keras.utils.visualize_util import plot
 import tensorflow as tf
 import keras.backend as K
 import numpy as np
+from tqdm import tqdm
 
 import simple_network as network_params
 
@@ -147,7 +148,25 @@ class MultiNetwork(object):
 
     def build_autoencoder(self):
         input_img = Input(shape=network_params.INPUT_IMAGE_SHAPE)
+        input_noise = Input(shape=[network_params.NOISE_SIZE])
         z = self.encoder(input_img)
+
+        z_noise = merge([input_noise, z], mode='concat')
+
+        screen_recon = self.decoder(z_noise)
+
+        self.autoencoder_gen = Model(input=[input_img, input_noise], output=screen_recon)
+        # self.autoencoder_gen.compile(optimizer=Adam(lr=0.0001), loss=sq_diff_loss)
+        self.autoencoder_gen.compile(optimizer=Adam(lr=0.0001), loss='mse')
+        # self.autoencoder_gen.summary()
+        plot(self.autoencoder_gen, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_gen'),
+             show_layer_names=True,
+             show_shapes=True)
+
+    def build_autoencoder_noise_free(self):
+        input_img = Input(shape=network_params.INPUT_IMAGE_SHAPE)
+        z = self.encoder(input_img)
+
         screen_recon = self.decoder(z)
 
         self.autoencoder_gen = Model(input_img, screen_recon)
@@ -159,22 +178,23 @@ class MultiNetwork(object):
 
     def build_ae_gan(self):
         input_img = Input(shape=network_params.INPUT_IMAGE_SHAPE)
+        input_noise = Input(shape=[network_params.NOISE_SIZE])
         # z_disc = self.encoder_disc(input_img)
         screen_disc = self.encoder_disc(input_img)
         # screen_disc = self.screen_discriminator(z_disc)
 
         self.autoencoder_disc = Model(input_img, screen_disc)
-        self.compile_disc_was()
+        self.compile_disc_ent()
         # self.autoencoder_disc.summary()
         plot(self.autoencoder_disc, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_disc'),
              show_layer_names=True,
              show_shapes=True)
 
-        screen_recon = self.autoencoder_gen(input_img)
+        screen_recon = self.autoencoder_gen([input_img, input_noise])
         fakeness = self.autoencoder_disc(screen_recon)
 
-        self.autoencoder_gan = Model(input=[input_img], output=[screen_recon, fakeness])
-        self.compile_gan_was()
+        self.autoencoder_gan = Model(input=[input_img, input_noise], output=[screen_recon, fakeness])
+        self.compile_gan()
 
         # self.autoencoder_gan.summary()
         plot(self.autoencoder_gan, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_gan'),
@@ -197,13 +217,13 @@ class MultiNetwork(object):
         self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001),
                                      loss=['mse', 'binary_crossentropy'],
                                      loss_weights=[0.0, 1.0],
-                                     metrics={'model_1': 'mse', 'model_2': 'accuracy'})
+                                     metrics={'model_2': 'accuracy'})
 
     def compile_gan_was(self):
         self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001),
                                      loss=['mse', loss_wasserstein],
                                      loss_weights=[0.0, 1.0],
-                                     metrics={'model_1': 'mse', 'model_2': 'accuracy'})
+                                     metrics={'model_2': 'accuracy'})
 
     def build_physics_predictor(self):
         return self
@@ -258,6 +278,31 @@ class MultiNetwork(object):
         # loss = self.autoencoder_disc.train_on_batch(images, labels + noise*np.random.randn(batch_size))
 
         return loss
+
+    def train_epoch_gan_simple(self, batch_getter, batches_per_epoch):
+        for _ in tqdm(range(batches_per_epoch)):
+            real_images = batch_getter()
+            noise = np.random.random((real_images.shape[0], network_params.NOISE_SIZE))
+            fake_images = self.autoencoder_gen.predict([real_images, noise])
+            images = np.concatenate((real_images, fake_images))
+            labels = np.ones(images.shape[0])
+            labels[images.shape[0]//2:] = 0
+            # labels[images.shape[0]//2:] = -1
+
+            self.autoencoder_disc.trainable = True
+            d_loss, d_acc = self.autoencoder_disc.train_on_batch(images, labels)
+            self.autoencoder_disc.trainable = False
+
+            for _ in range(1):
+                real_images = batch_getter()
+                noise = np.random.random((real_images.shape[0], network_params.NOISE_SIZE))
+                labels = np.ones(real_images.shape[0])
+                metrics = self.autoencoder_gan.train_on_batch([real_images, noise], [real_images, labels])
+                total_loss, recon_loss, g_loss, g_acc = metrics
+
+        return d_loss, g_loss
+
+
 
     def test_ae_discriminator(self, batch_getter, batches):
         loss = 0
