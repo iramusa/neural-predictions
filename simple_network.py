@@ -16,6 +16,11 @@ NOISE_SIZE = 128
 POSITIONAL_ARGS = 'pos_args'
 KEYWORD_ARGS = 'key_args'
 
+
+def initNormal(shape, name=None, **kwargs):
+    return initializations.normal(shape, scale=0.02, name=name)
+
+
 ENCODER = {
         'name': 'conv4',
         'input_shape': INPUT_IMAGE_SHAPE,
@@ -99,6 +104,7 @@ DECODER = {
                 'output_dim': 7*7*128,
                 KEYWORD_ARGS: {
                     # 'init': 'glorot_normal',
+                    'init': initNormal,
                     # 'activation': 'relu',
                     'activation': LeakyReLU(0.2),
                 }
@@ -292,29 +298,29 @@ ENCODER_DISCRIMINATOR = {
             {
                 'type': Flatten,
             },
-            # {
-            #     'type': Dropout,
-            #     KEYWORD_ARGS: {
-            #         'p': 0.3,
-            #     }
-            # },
+            {
+                'type': Dropout,
+                KEYWORD_ARGS: {
+                    'p': 0.3,
+                }
+            },
             # {
             #     'type': BatchNormalization,
             #     KEYWORD_ARGS: {
             #         'mode': 2,
             #     }
             # },
-            # {
-            #     'type': Dense,
-            #     POSITIONAL_ARGS: [128],
-            #     KEYWORD_ARGS: {
-            #         # 'activation': 'sigmoid',
-            #         # 'activation': 'relu',
-            #         'activation': LeakyReLU(0.2),
-            #         # 'activation': 'tanh',
-            #         'init': 'glorot_normal',
-            #     }
-            # },
+            {
+                'type': Dense,
+                POSITIONAL_ARGS: [128],
+                KEYWORD_ARGS: {
+                    # 'activation': 'sigmoid',
+                    # 'activation': 'relu',
+                    'activation': LeakyReLU(0.2),
+                    # 'activation': 'tanh',
+                    'init': 'glorot_normal',
+                }
+            },
             {
                 'type': Dropout,
                 KEYWORD_ARGS: {
