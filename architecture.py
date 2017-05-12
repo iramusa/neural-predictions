@@ -216,6 +216,7 @@ class MultiNetwork(object):
 
     def compile_disc_ent(self):
         self.autoencoder_disc.compile(optimizer='adadelta', loss='binary_crossentropy', metrics=['accuracy'])
+        # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002, beta_1=0.5), loss='binary_crossentropy', metrics=['accuracy'])
 
     def compile_gan(self):
         self.autoencoder_gan.compile(optimizer=Adam(lr=0.0002, beta_1=0.5),
@@ -284,18 +285,20 @@ class MultiNetwork(object):
         return loss
 
     def train_epoch_gan_simple(self, batch_getter, batches_per_epoch):
+        d_losses = []
+        g_losses = []
         for _ in tqdm(range(batches_per_epoch)):
             d_loss = 1
             g_loss = 1
             # while d_loss > -0.6:
             for _ in range(1):
                 real_images = batch_getter()
-                noise = np.random.random((real_images.shape[0], network_params.NOISE_SIZE))
-                fake_images = self.autoencoder_gen.predict([real_images, noise])
+                noise = np.random.normal(0, 1, (real_images.shape[0], network_params.NOISE_SIZE))
+                fake_images = self.autoencoder_gen.predict([0*real_images, noise])
                 batch_size = real_images.shape[0]
                 images = np.concatenate((real_images, fake_images))
-                labels = np.ones([images.shape[0], 1])
-                labels[images.shape[0]//2:] = 0
+                labels = np.zeros([images.shape[0], 1])
+                labels[:images.shape[0]//2] = 0.9
                 # labels[images.shape[0]//2:] = -1 #last sort of working
                 # labels *= -1 # good
 
@@ -307,16 +310,20 @@ class MultiNetwork(object):
                 # d_loss = (d_loss_real + d_loss_fake)/2
                 self.autoencoder_disc.trainable = False
 
+            d_losses.append(d_loss)
+
             # while g_loss > -0.2:
             for _ in range(1):
                 real_images = batch_getter()
-                noise = np.random.random((real_images.shape[0], network_params.NOISE_SIZE))
+                noise = np.random.normal(0, 1, (real_images.shape[0], network_params.NOISE_SIZE))
                 # labels = -np.ones(real_images.shape[0])
                 labels = np.ones(real_images.shape[0])
-                metrics = self.autoencoder_gan.train_on_batch([real_images, noise], [real_images, labels])
+                metrics = self.autoencoder_gan.train_on_batch([0*real_images, noise], [real_images, labels])
                 total_loss, recon_loss, g_loss, g_acc = metrics
 
-        return d_loss, g_loss
+                g_losses.append(g_loss)
+
+        return d_losses, g_losses
 
 
 
