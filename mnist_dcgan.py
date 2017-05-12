@@ -31,21 +31,21 @@ randomDim = 100
 
 
 # toy problem data
-DATA_FOLDER = 'data-toy'
-GAME = 'simple'
-
-file_train = "{0}/{1}-{2}.tfrecords".format(DATA_FOLDER, GAME, 'train')
+# DATA_FOLDER = 'data-toy'
+# GAME = 'simple'
+#
+# file_train = "{0}/{1}-{2}.tfrecords".format(DATA_FOLDER, GAME, 'train')
 # file_valid = "{0}/{1}-{2}.tfrecords".format(DATA_FOLDER, GAME, 'valid')
-train_gen = DataContainer(file_train, batch_size=128,
-                               im_shape=network_params.INPUT_IMAGE_SHAPE,
-                               ep_len_read=20, episodes=1000)
+# train_gen = DataContainer(file_train, batch_size=128,
+#                                im_shape=network_params.INPUT_IMAGE_SHAPE,
+#                                ep_len_read=20, episodes=1000)
 # valid_gen = DataContainer(file_valid, batch_size=128,
 #                                im_shape=network_params.INPUT_IMAGE_SHAPE,
 #                                ep_len_read=20, episodes=200)
 
 # Load MNIST data
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
-X_train = (X_train.astype(np.float32) - 127.5)/127.5
+X_train = (X_train.astype(np.float32)/255.0)
 X_train = X_train[:, np.newaxis, :, :]
 
 # Function for initializing network weights
@@ -65,7 +65,7 @@ generator.add(UpSampling2D(size=(2, 2)))
 generator.add(Convolution2D(64, 5, 5, border_mode='same'))
 generator.add(LeakyReLU(0.2))
 generator.add(UpSampling2D(size=(2, 2)))
-generator.add(Convolution2D(1, 5, 5, border_mode='same', activation='tanh'))
+generator.add(Convolution2D(1, 5, 5, border_mode='same', activation='sigmoid'))
 generator.compile(loss='binary_crossentropy', optimizer=adam)
 
 # Discriminator
@@ -121,6 +121,7 @@ def saveModels(epoch):
 
 def train(epochs=1, batchSize=128):
     batchCount = X_train.shape[0] / batchSize
+    batchCount = 10
     print('Epochs:', epochs)
     print('Batch size:', batchSize)
     print('Batches per epoch:', batchCount)
@@ -130,9 +131,9 @@ def train(epochs=1, batchSize=128):
         for _ in tqdm(range(int(batchCount))):
             # Get a random set of input noise and images
             noise = np.random.normal(0, 1, size=[batchSize, randomDim])
-            # imageBatch = X_train[np.random.randint(0, X_train.shape[0], size=batchSize)]
+            imageBatch = X_train[np.random.randint(0, X_train.shape[0], size=batchSize)]
             # print('old shape', imageBatch.shape)
-            imageBatch = train_gen.get_batch_images().reshape((128, 1, 28, 28))
+            # imageBatch = train_gen.get_batch_images().reshape((batchSize, 1, 28, 28))
             # print('new shape', imageBatch.shape)
 
             # Generate fake MNIST images
@@ -142,26 +143,26 @@ def train(epochs=1, batchSize=128):
             # Labels for generated and real data
             yDis = np.zeros(2*batchSize)
             # One-sided label smoothing
-            yDis[:batchSize] = 0.9
+            yDis[:batchSize] = 1
 
             # Train discriminator
             discriminator.trainable = True
             dloss = discriminator.train_on_batch(X, yDis)
             discriminator.trainable = False
 
-            for _ in range(4):
-                # Train generator
-                noise = np.random.normal(0, 1, size=[batchSize, randomDim])
-                yGen = np.ones(batchSize)
-                gloss = gan.train_on_batch(noise, yGen)
+            # for _ in range(4):
+            # Train generator
+            noise = np.random.normal(0, 1, size=[batchSize, randomDim])
+            yGen = np.ones(batchSize)
+            gloss = gan.train_on_batch(noise, yGen)
 
             # Store loss of most recent batch from this epoch
-            dLosses.append(dloss)
-            gLosses.append(gloss)
+        dLosses.append(dloss)
+        gLosses.append(gloss)
 
         if e == 1 or e % 5 == 0:
             plotGeneratedImages(e)
-            saveModels(e)
+            # saveModels(e)
             plotLoss(e)
 
             # Plot losses from every epoch

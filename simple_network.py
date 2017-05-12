@@ -87,17 +87,18 @@ ENCODER = {
         ],
     }
 
+
 DECODER = {
-        'name': 'deconv4',
-        'input_shape': (V_SIZE + NOISE_SIZE,),
+        'name': 'decoder',
+        'input_shape': (V_SIZE,),
         'output_shape': INPUT_IMAGE_SHAPE,
         'layers': [
-            # {
-            #     'type': BatchNormalization,
-            #     KEYWORD_ARGS: {
-            #         'mode': 2,
-            #     }
-            # },
+            {
+                'type': BatchNormalization,
+                KEYWORD_ARGS: {
+                    'mode': 2,
+                }
+            },
             {
                 'type': Dense,
                 POSITIONAL_ARGS: [7*7*128],
@@ -109,12 +110,12 @@ DECODER = {
                     'activation': LeakyReLU(0.2),
                 }
             },
-            # {
-            #     'type': BatchNormalization,
-            #     KEYWORD_ARGS: {
-            #         'mode': 2,
-            #     }
-            # },
+            {
+                'type': BatchNormalization,
+                KEYWORD_ARGS: {
+                    'mode': 2,
+                }
+            },
             {
                 'type': Reshape,
                 POSITIONAL_ARGS: [(7, 7, 128)],
@@ -137,12 +138,12 @@ DECODER = {
 
                 }
             },
-            # {
-            #     'type': BatchNormalization,
-            #     KEYWORD_ARGS: {
-            #         'mode': 2,
-            #     }
-            # },
+            {
+                'type': BatchNormalization,
+                KEYWORD_ARGS: {
+                    'mode': 2,
+                }
+            },
             {
                 'type': UpSampling2D,
                 POSITIONAL_ARGS: [(2, 2)]
@@ -157,59 +158,80 @@ DECODER = {
                     'border_mode': 'same'
                 }
             },
-            # {
-            #     'type': UpSampling2D,
-            #     POSITIONAL_ARGS: [(2, 2)]
-            # },
-            # {
-            #     'type': ZeroPadding2D,
-            #     KEYWORD_ARGS: {
-            #         'padding': (1, 1)
-            #     }
-            #
-            # },
-            # {
-            #     'type': BatchNormalization,
-            #     KEYWORD_ARGS: {
-            #         'mode': 2,
-            #     }
-            # },
-            # {
-            #     'type': Convolution2D,
-            #     POSITIONAL_ARGS: [64, 6, 6],
-            #     KEYWORD_ARGS: {
-            #         'init': 'glorot_normal',
-            #         'activation': 'relu',
-            #         'border_mode': 'same'
-            #     }
-            # },
-            #
-            # {
-            #     'type': UpSampling2D,
-            #     POSITIONAL_ARGS: [(2, 2)]
-            # },
-            # {
-            #     'type': ZeroPadding2D,
-            #     KEYWORD_ARGS: {
-            #         'padding': (3, 2)
-            #     }
-            #
-            # },
-            # {
-            #     'type': BatchNormalization,
-            #     KEYWORD_ARGS: {
-            #         'mode': 2,
-            #     }
-            # },
-            # {
-            #     'type': Convolution2D,
-            #     POSITIONAL_ARGS: [1, 3, 3],
-            #     KEYWORD_ARGS: {
-            #         'init': 'glorot_normal',
-            #         'activation': 'tanh',
-            #         'border_mode': 'same'
-            #     }
-            # },
+        ],
+    }
+
+
+GENERATOR = {
+        'name': 'deconv4',
+        'input_shape': (V_SIZE + NOISE_SIZE,),
+        'output_shape': INPUT_IMAGE_SHAPE,
+        'layers': [
+            {
+                'type': BatchNormalization,
+                KEYWORD_ARGS: {
+                    'mode': 2,
+                }
+            },
+            {
+                'type': Dense,
+                POSITIONAL_ARGS: [7*7*128],
+                'output_dim': 7*7*128,
+                KEYWORD_ARGS: {
+                    # 'init': 'glorot_normal',
+                    'init': initNormal,
+                    # 'activation': 'relu',
+                    'activation': LeakyReLU(0.2),
+                }
+            },
+            {
+                'type': BatchNormalization,
+                KEYWORD_ARGS: {
+                    'mode': 2,
+                }
+            },
+            {
+                'type': Reshape,
+                POSITIONAL_ARGS: [(7, 7, 128)],
+                'shape': (7, 7, 128),
+            },
+            {
+                'type': UpSampling2D,
+                POSITIONAL_ARGS: [(2, 2)]
+            },
+
+
+            {
+                'type': Convolution2D,
+                POSITIONAL_ARGS: [64, 5, 5],
+                KEYWORD_ARGS : {
+                    # 'init': 'glorot_normal',
+                    # 'activation': 'relu',
+                    'activation': LeakyReLU(0.2),
+                    'border_mode': 'same'
+
+                }
+            },
+            {
+                'type': BatchNormalization,
+                KEYWORD_ARGS: {
+                    'mode': 2,
+                }
+            },
+            {
+                'type': UpSampling2D,
+                POSITIONAL_ARGS: [(2, 2)]
+            },
+
+            {
+                'type': Convolution2D,
+                POSITIONAL_ARGS: [1, 5, 5],
+                KEYWORD_ARGS: {
+                    # 'init': 'glorot_normal',
+                    'activation': 'sigmoid',
+                    'border_mode': 'same'
+                }
+            },
         ],
     }
 
@@ -348,6 +370,7 @@ ENCODER_DISCRIMINATOR = {
 DEFAULT_STRUCTURE = {
     'encoder': ENCODER,
     'decoder': DECODER,
+    'generator': GENERATOR,
     'screen_discriminator': SCREEN_DISCRIMINATOR,
     'encoder_shallow': ENCODER_SHALLOW,
     'encoder_discriminator': ENCODER_DISCRIMINATOR,

@@ -74,6 +74,7 @@ class MultiNetwork(object):
         # branches of network
         self.encoder = None
         self.decoder = None
+        self.generator = None
         self.physics_predictor = None
         self.action_mapper = None
         self.action_predictor = None
@@ -100,6 +101,7 @@ class MultiNetwork(object):
 
     def build_branches(self):
         self.encoder = self.build_branch(self.structure['encoder'])
+        self.generator = self.build_branch(self.structure['generator'])
         self.decoder = self.build_branch(self.structure['decoder'])
 
         self.encoder_disc = self.build_branch(self.structure['encoder_discriminator'])
@@ -155,7 +157,7 @@ class MultiNetwork(object):
 
         z_noise = merge([input_noise, z], mode='concat')
 
-        screen_recon = self.decoder(z_noise)
+        screen_recon = self.generator(z_noise)
 
         self.autoencoder_gen = Model(input=[input_img, input_noise], output=screen_recon)
         # self.autoencoder_gen.compile(optimizer=Adam(lr=0.0001), loss=sq_diff_loss)
@@ -169,7 +171,7 @@ class MultiNetwork(object):
         input_img = Input(shape=network_params.INPUT_IMAGE_SHAPE)
         z = self.encoder(input_img)
 
-        screen_recon = self.decoder(z)
+        screen_recon = self.generator(z)
 
         self.autoencoder_gen = Model(input_img, screen_recon)
         # self.autoencoder_gen.compile(optimizer=Adam(lr=0.0001), loss=sq_diff_loss)
@@ -186,8 +188,10 @@ class MultiNetwork(object):
         # screen_disc = self.screen_discriminator(z_disc)
 
         self.autoencoder_disc = Model(input_img, screen_disc)
+        self.autoencoder_disc.trainable = True
         self.compile_disc_ent()
         # self.compile_disc_was()
+
         # self.autoencoder_disc.summary()
         plot(self.autoencoder_disc, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_disc'),
              show_layer_names=True,
@@ -197,7 +201,8 @@ class MultiNetwork(object):
         fakeness = self.autoencoder_disc(screen_recon)
 
         self.autoencoder_gan = Model(input=[input_img, input_noise], output=[screen_recon, fakeness])
-        self.compile_gan()
+        self.autoencoder_disc.trainable = False
+        self.compile_gan_ent()
         # self.compile_gan_was()
 
         # self.autoencoder_gan.summary()
@@ -212,13 +217,16 @@ class MultiNetwork(object):
         # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002), loss=loss_wasserstein, metrics=['accuracy'])
 
     def compile_disc_was(self):
-        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002, beta_1=0.5), loss=loss_wasserstein, metrics=['accuracy'])
+        # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002, beta_1=0.5), loss=loss_wasserstein, metrics=['accuracy'])
+        self.autoencoder_disc.compile(optimizer='adadelta', loss=loss_wasserstein, metrics=['accuracy'])
 
     def compile_disc_ent(self):
-        self.autoencoder_disc.compile(optimizer='adadelta', loss='binary_crossentropy', metrics=['accuracy'])
+        # self.autoencoder_disc.compile(optimizer='adadelta', loss='binary_crossentropy', metrics=['accuracy'])
+        self.autoencoder_disc.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
         # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002, beta_1=0.5), loss='binary_crossentropy', metrics=['accuracy'])
+        # self.autoencoder_disc.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
 
-    def compile_gan(self):
+    def compile_gan_ent(self):
         self.autoencoder_gan.compile(optimizer=Adam(lr=0.0002, beta_1=0.5),
                                      loss=['mse', 'binary_crossentropy'],
                                      loss_weights=[0.0, 1.0],
@@ -297,8 +305,11 @@ class MultiNetwork(object):
                 fake_images = self.autoencoder_gen.predict([0*real_images, noise])
                 batch_size = real_images.shape[0]
                 images = np.concatenate((real_images, fake_images))
+
                 labels = np.zeros([images.shape[0], 1])
-                labels[:images.shape[0]//2] = 0.9
+                labels[:images.shape[0]//2] = 1.0
+
+                # labels = np.ones([images.shape[0], 1])
                 # labels[images.shape[0]//2:] = -1 #last sort of working
                 # labels *= -1 # good
 
@@ -306,6 +317,7 @@ class MultiNetwork(object):
                 d_loss, d_acc = self.autoencoder_disc.train_on_batch(images, labels)
                 # d_loss_real, d_acc_real = self.autoencoder_disc.train_on_batch(real_images, -np.ones(batch_size))
                 # d_loss_fake, d_acc_fake = self.autoencoder_disc.train_on_batch(fake_images, np.ones(batch_size))
+                # d_loss_real, d_acc_real = self.autoencoder_disc.train_on_batch(real_images, np.ones(batch_size))
                 # d_loss_fake, d_acc_fake = self.autoencoder_disc.train_on_batch(fake_images, np.zeros(batch_size))
                 # d_loss = (d_loss_real + d_loss_fake)/2
                 self.autoencoder_disc.trainable = False

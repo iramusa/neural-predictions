@@ -92,7 +92,7 @@ class DataContainer(object):
         return random_ims
 
     def get_batch_images(self):
-        return self.get_n_random_images(self.batch_size)
+        return self.get_n_random_images(self.batch_size).astype('float')
 
     def get_n_random_episodes(self, n, ep_len=None):
         if ep_len is None:

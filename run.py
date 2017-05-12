@@ -28,12 +28,12 @@ LOG_FILE = 'log.log'
 ERR_FILE = 'err.log'
 
 GAME = 'simple'
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 BATCHES_PER_EPOCH = 600
 
 
 class Experiment(object):
-    def __init__(self, output_folder='pure_gan', description='', epochs=200, mnist_run=True, **kwargs):
+    def __init__(self, output_folder='pure_gan', description='', epochs=200, mnist_run=False, **kwargs):
         datetag = datetime.datetime.now().strftime('%y-%m-%d_%H:%M')
         self.output_folder = '{0}/{1}_{2}'.format(EXPERIMENTS_FOLDER, output_folder, datetag)
         self.reconstructions_folder = '{0}/{1}'.format(self.output_folder, RECONSTRUCTIONS_FOLDER)
@@ -184,9 +184,11 @@ class Experiment(object):
     def train_gan_simple(self, epochs=50):
         for i in range(epochs):
             print('Epoch ', i)
-            d_loss, g_loss = self.network.train_epoch_gan_simple(self.train_gen.get_batch_images, 10)
-            self.d_losses.append(d_loss)
-            self.g_losses.append(g_loss)
+            d_loss, g_loss = self.network.train_epoch_gan_simple(self.train_gen.get_batch_images, 600)
+            # self.d_losses += d_loss
+            # self.g_losses += g_loss
+            self.d_losses.append(d_loss[-1])
+            self.g_losses.append(g_loss[-1])
 
             if i % 5 == 0:
                 self.plot_losses()
@@ -235,8 +237,8 @@ class Experiment(object):
     def plot_losses(self):
         epoch = len(self.d_losses)
         plt.figure(figsize=(10, 8))
-        plt.plot(self.d_losses, label='Discriminitive loss')
         plt.plot(self.g_losses, label='Generative loss')
+        plt.plot(self.d_losses, label='Discriminative loss')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.legend()
@@ -251,7 +253,7 @@ class Experiment(object):
         fpath = '{0}/encoder_{1}.hdf5'.format(self.models_folder, epochs_so_far)
         self.network.encoder.save_weights(fpath)
         fpath = '{0}/decoder_{1}.hdf5'.format(self.models_folder, epochs_so_far)
-        self.network.decoder.save_weights(fpath)
+        self.network.generator.save_weights(fpath)
         fpath = '{0}/autoencoder_disc_{1}.hdf5'.format(self.models_folder, epochs_so_far)
         self.network.autoencoder_disc.save_weights(fpath)
         # fpath = '{0}/screen_discriminator_{1}.hdf5'.format(self.models_folder, epochs_so_far)
@@ -262,7 +264,7 @@ class Experiment(object):
         fpath = '{0}/encoder_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
         self.network.encoder.load_weights(fpath)
         fpath = '{0}/decoder_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
-        self.network.decoder.load_weights(fpath)
+        self.network.generator.load_weights(fpath)
         fpath = '{0}/autoencoder_disc_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
         self.network.autoencoder_disc.load_weights(fpath)
         # fpath = '{0}/screen_discriminator_{1}.hdf5'.format(LOAD_MODELS_FOLDER, tag)
