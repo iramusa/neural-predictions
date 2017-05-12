@@ -40,9 +40,11 @@ def metric_acc(x, y):
     acc = np.mean(correct)
     return acc
 
+
 def loss_wasserstein(y_true, y_pred):
-    loss = K.mean(y_true * y_pred)
+    loss = K.mean(tf.mul(y_true, y_pred))
     return loss
+
 
 def loss_diff(y_true, y_pred):
     # true gradients
@@ -185,6 +187,7 @@ class MultiNetwork(object):
 
         self.autoencoder_disc = Model(input_img, screen_disc)
         self.compile_disc_ent()
+        # self.compile_disc_was()
         # self.autoencoder_disc.summary()
         plot(self.autoencoder_disc, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_disc'),
              show_layer_names=True,
@@ -195,6 +198,7 @@ class MultiNetwork(object):
 
         self.autoencoder_gan = Model(input=[input_img, input_noise], output=[screen_recon, fakeness])
         self.compile_gan()
+        # self.compile_gan_was()
 
         # self.autoencoder_gan.summary()
         plot(self.autoencoder_gan, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_gan'),
@@ -203,24 +207,24 @@ class MultiNetwork(object):
 
     def compile_disc_mse(self):
         # self.autoencoder_disc.compile(optimizer='sgd', loss='mse', metrics=['accuracy'])
-        self.autoencoder_disc.compile(optimizer='adadelta', loss='mse', metrics=['accuracy'])
+        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002, beta_1=0.5), loss='mse', metrics=['accuracy'])
         # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002), loss='mse', metrics=['accuracy'])
         # self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002), loss=loss_wasserstein, metrics=['accuracy'])
 
     def compile_disc_was(self):
-        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0001), loss=loss_wasserstein, metrics=['accuracy'])
+        self.autoencoder_disc.compile(optimizer=Adam(lr=0.0002, beta_1=0.5), loss=loss_wasserstein, metrics=['accuracy'])
 
     def compile_disc_ent(self):
         self.autoencoder_disc.compile(optimizer='adadelta', loss='binary_crossentropy', metrics=['accuracy'])
 
     def compile_gan(self):
-        self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001),
+        self.autoencoder_gan.compile(optimizer=Adam(lr=0.0002, beta_1=0.5),
                                      loss=['mse', 'binary_crossentropy'],
                                      loss_weights=[0.0, 1.0],
                                      metrics={'model_2': 'accuracy'})
 
     def compile_gan_was(self):
-        self.autoencoder_gan.compile(optimizer=Adam(lr=0.0001),
+        self.autoencoder_gan.compile(optimizer=Adam(lr=0.0002, beta_1=0.5),
                                      loss=['mse', loss_wasserstein],
                                      loss_weights=[0.0, 1.0],
                                      metrics={'model_2': 'accuracy'})
@@ -281,21 +285,33 @@ class MultiNetwork(object):
 
     def train_epoch_gan_simple(self, batch_getter, batches_per_epoch):
         for _ in tqdm(range(batches_per_epoch)):
-            real_images = batch_getter()
-            noise = np.random.random((real_images.shape[0], network_params.NOISE_SIZE))
-            fake_images = self.autoencoder_gen.predict([real_images, noise])
-            images = np.concatenate((real_images, fake_images))
-            labels = np.ones(images.shape[0])
-            labels[images.shape[0]//2:] = 0
-            # labels[images.shape[0]//2:] = -1
-
-            self.autoencoder_disc.trainable = True
-            d_loss, d_acc = self.autoencoder_disc.train_on_batch(images, labels)
-            self.autoencoder_disc.trainable = False
-
+            d_loss = 1
+            g_loss = 1
+            # while d_loss > -0.6:
             for _ in range(1):
                 real_images = batch_getter()
                 noise = np.random.random((real_images.shape[0], network_params.NOISE_SIZE))
+                fake_images = self.autoencoder_gen.predict([real_images, noise])
+                batch_size = real_images.shape[0]
+                images = np.concatenate((real_images, fake_images))
+                labels = np.ones([images.shape[0], 1])
+                labels[images.shape[0]//2:] = 0
+                # labels[images.shape[0]//2:] = -1 #last sort of working
+                # labels *= -1 # good
+
+                self.autoencoder_disc.trainable = True
+                d_loss, d_acc = self.autoencoder_disc.train_on_batch(images, labels)
+                # d_loss_real, d_acc_real = self.autoencoder_disc.train_on_batch(real_images, -np.ones(batch_size))
+                # d_loss_fake, d_acc_fake = self.autoencoder_disc.train_on_batch(fake_images, np.ones(batch_size))
+                # d_loss_fake, d_acc_fake = self.autoencoder_disc.train_on_batch(fake_images, np.zeros(batch_size))
+                # d_loss = (d_loss_real + d_loss_fake)/2
+                self.autoencoder_disc.trainable = False
+
+            # while g_loss > -0.2:
+            for _ in range(1):
+                real_images = batch_getter()
+                noise = np.random.random((real_images.shape[0], network_params.NOISE_SIZE))
+                # labels = -np.ones(real_images.shape[0])
                 labels = np.ones(real_images.shape[0])
                 metrics = self.autoencoder_gan.train_on_batch([real_images, noise], [real_images, labels])
                 total_loss, recon_loss, g_loss, g_acc = metrics

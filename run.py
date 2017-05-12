@@ -32,8 +32,6 @@ BATCH_SIZE = 32
 BATCHES_PER_EPOCH = 600
 
 
-
-
 class Experiment(object):
     def __init__(self, output_folder='pure_gan', description='', epochs=200, mnist_run=True, **kwargs):
         datetag = datetime.datetime.now().strftime('%y-%m-%d_%H:%M')
@@ -186,7 +184,7 @@ class Experiment(object):
     def train_gan_simple(self, epochs=50):
         for i in range(epochs):
             print('Epoch ', i)
-            d_loss, g_loss = self.network.train_epoch_gan_simple(self.train_gen.get_batch_images, 60)
+            d_loss, g_loss = self.network.train_epoch_gan_simple(self.train_gen.get_batch_images, 10)
             self.d_losses.append(d_loss)
             self.g_losses.append(g_loss)
 
@@ -314,7 +312,6 @@ class Experiment(object):
             if self.network.autoencoder_disc.trainable is True:
                 architecture.make_trainable(self.network.autoencoder_disc, False)
                 self.network.compile_gan_was()
-
 
             loss_line = 0.9
             while loss > -loss_line:

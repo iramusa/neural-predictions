@@ -1,6 +1,7 @@
 from keras.layers import Input, Dense, Convolution2D, Deconvolution2D, MaxPooling2D,\
     UpSampling2D, Merge, LSTM, Flatten, ZeroPadding2D, Reshape, BatchNormalization, Dropout
 from keras.layers.advanced_activations import LeakyReLU
+from keras import initializations
 
 
 IMAGE_SIZE_X = 28
@@ -27,7 +28,7 @@ ENCODER = {
                     'subsample': (2, 2),
                     # 'activation': 'relu',
                     'activation': LeakyReLU(0.2),
-                    'init': 'glorot_normal',
+                    # 'init': 'glorot_normal',
                     'border_mode': 'same'
                 }
             },
@@ -50,7 +51,7 @@ ENCODER = {
                     'subsample': (2, 2),
                     # 'activation': 'relu',
                     'activation': LeakyReLU(0.2),
-                    'init': 'glorot_normal',
+                    # 'init': 'glorot_normal',
                     'border_mode': 'same'
                 }
             },
@@ -75,7 +76,7 @@ ENCODER = {
                 KEYWORD_ARGS: {
                     # 'activation': 'relu',
                     'activation': LeakyReLU(0.2),
-                    'init': 'uniform',
+                    # 'init': 'uniform',
                 }
             },
         ],
@@ -97,7 +98,7 @@ DECODER = {
                 POSITIONAL_ARGS: [7*7*128],
                 'output_dim': 7*7*128,
                 KEYWORD_ARGS: {
-                    'init': 'glorot_normal',
+                    # 'init': 'glorot_normal',
                     # 'activation': 'relu',
                     'activation': LeakyReLU(0.2),
                 }
@@ -123,7 +124,7 @@ DECODER = {
                 'type': Convolution2D,
                 POSITIONAL_ARGS: [64, 5, 5],
                 KEYWORD_ARGS : {
-                    'init': 'glorot_normal',
+                    # 'init': 'glorot_normal',
                     # 'activation': 'relu',
                     'activation': LeakyReLU(0.2),
                     'border_mode': 'same'
@@ -145,7 +146,7 @@ DECODER = {
                 'type': Convolution2D,
                 POSITIONAL_ARGS: [1, 5, 5],
                 KEYWORD_ARGS: {
-                    'init': 'glorot_normal',
+                    # 'init': 'glorot_normal',
                     'activation': 'sigmoid',
                     'border_mode': 'same'
                 }
@@ -261,7 +262,7 @@ ENCODER_DISCRIMINATOR = {
                     'subsample': (2, 2),
                     # 'activation': 'relu',
                     'activation': LeakyReLU(0.2),
-                    'init': 'glorot_normal',
+                    # 'init': 'glorot_normal',
                     'border_mode': 'same'
                 }
             },
@@ -279,23 +280,46 @@ ENCODER_DISCRIMINATOR = {
             # },
             {
                 'type': Convolution2D,
-                POSITIONAL_ARGS: [128, 3, 3],
+                POSITIONAL_ARGS: [128, 5, 5],
                 KEYWORD_ARGS: {
                     'subsample': (2, 2),
                     # 'activation': 'relu',
                     'activation': LeakyReLU(0.2),
-                    'init': 'glorot_normal',
+                    # 'init': 'glorot_normal',
                     'border_mode': 'same'
                 }
             },
+            {
+                'type': Flatten,
+            },
+            # {
+            #     'type': Dropout,
+            #     KEYWORD_ARGS: {
+            #         'p': 0.3,
+            #     }
+            # },
+            # {
+            #     'type': BatchNormalization,
+            #     KEYWORD_ARGS: {
+            #         'mode': 2,
+            #     }
+            # },
+            # {
+            #     'type': Dense,
+            #     POSITIONAL_ARGS: [128],
+            #     KEYWORD_ARGS: {
+            #         # 'activation': 'sigmoid',
+            #         # 'activation': 'relu',
+            #         'activation': LeakyReLU(0.2),
+            #         # 'activation': 'tanh',
+            #         'init': 'glorot_normal',
+            #     }
+            # },
             {
                 'type': Dropout,
                 KEYWORD_ARGS: {
                     'p': 0.3,
                 }
-            },
-            {
-                'type': Flatten,
             },
             # {
             #     'type': BatchNormalization,
@@ -308,7 +332,8 @@ ENCODER_DISCRIMINATOR = {
                 POSITIONAL_ARGS: [1],
                 KEYWORD_ARGS: {
                     'activation': 'sigmoid',
-                    'init': 'uniform',
+                    # 'activation': 'tanh',
+                    # 'init': 'glorot_normal',
                 }
             },
         ],
@@ -321,3 +346,13 @@ DEFAULT_STRUCTURE = {
     'encoder_shallow': ENCODER_SHALLOW,
     'encoder_discriminator': ENCODER_DISCRIMINATOR,
 }
+
+
+
+
+
+
+
+
+
+
