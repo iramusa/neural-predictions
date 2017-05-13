@@ -10,8 +10,8 @@ import tensorflow as tf
 
 # SIM = 'simple'
 SIM = 'single'
-FILENAME = SIM + '-valid'
-# FILENAME = SIM + '-train'
+# FILENAME = SIM + '-valid'
+FILENAME = SIM + '-train'
 EPISODES_TRAIN = 1000
 EPISODES_VALID = 200
 EP_LEN = 20
