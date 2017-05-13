@@ -7,13 +7,14 @@ WORLD_LEN = 28
 WORLD_SIZE = np.array((WORLD_LEN, WORLD_LEN))
 # N_BODIES = 4
 N_BODIES = 1
-MAX_AX_V = 3
+MAX_AX_V = 1
 
 FACES = {
     '[]': np.array([
-        [1, 1, 1],
-        [1, 1, 1],
-        [1, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
     ]),
     # 'T': np.array([
     #     [1, 1, 1],
