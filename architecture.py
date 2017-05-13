@@ -71,6 +71,8 @@ class MultiNetwork(object):
 
         self.structure = kwargs.get('structure', network_params.DEFAULT_STRUCTURE)
 
+        self.pred_ahead = True
+
         # branches of network
         self.encoder = None
         self.decoder = None
@@ -358,7 +360,10 @@ class MultiNetwork(object):
         losses = []
         for _ in tqdm(range(batches)):
             ep = ep_getter()
-            loss = self.screen_predictor.train_on_batch(ep[0:19], ep[1:20])
+            if self.pred_ahead:
+                loss = self.screen_predictor.train_on_batch(ep[0:19], ep[1:20])
+            else:
+                loss = self.screen_predictor.train_on_batch(ep[0:19], ep[0:19])
             losses.append(loss)
 
         return losses

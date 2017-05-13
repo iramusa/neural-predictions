@@ -27,7 +27,7 @@ LOG_TO_FILE = False
 LOG_FILE = 'log.log'
 ERR_FILE = 'err.log'
 
-GAME = 'simple'
+GAME = 'single'
 BATCH_SIZE = 128
 BATCHES_PER_EPOCH = 150
 
@@ -208,7 +208,7 @@ class Experiment(object):
         ep_query = ep[0:19, ...]
         ep_valid = ep[1:20, ...]
         ep_pred = self.network.screen_predictor.predict(ep_query)
-        merged = np.concatenate((ep_valid.reshape((19 * 28, 28)), ep_pred.reshape((19 * 28, 28))), axis=1).T
+        merged = np.concatenate((ep_valid.reshape((19 * 28, 28)), np.ones((19*28, 1)), ep_pred.reshape((19 * 28, 28))), axis=1).T
 
         # return to viewable representation
         merged *= 255

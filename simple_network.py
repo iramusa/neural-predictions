@@ -3,6 +3,7 @@ from keras.layers import Input, Dense, Convolution2D, Deconvolution2D, MaxPoolin
 from keras.layers.advanced_activations import LeakyReLU
 from keras import initializations
 
+EP_LEN = 20
 
 IMAGE_SIZE_X = 28
 IMAGE_SIZE_Y = 28
@@ -10,7 +11,7 @@ IMAGE_CHANNELS = 1
 
 INPUT_IMAGE_SHAPE = (IMAGE_SIZE_Y, IMAGE_SIZE_X, IMAGE_CHANNELS)
 
-V_SIZE = 128
+V_SIZE = 8
 NOISE_SIZE = 128
 
 POSITIONAL_ARGS = 'pos_args'
@@ -22,7 +23,7 @@ def initNormal(shape, name=None, **kwargs):
 
 
 ENCODER = {
-        'name': 'conv4',
+        'name': 'encoder',
         'input_shape': INPUT_IMAGE_SHAPE,
         'output_shape': (V_SIZE,),
         'layers': [
@@ -161,6 +162,36 @@ DECODER = {
         ],
     }
 
+
+STATE_PREDICTOR = {
+        'name': 'state_predictor',
+        'input_shape': (V_SIZE,),
+        'output_shape': (V_SIZE,),
+        'layers': [
+            {
+                'type': BatchNormalization,
+                KEYWORD_ARGS: {
+                    'mode': 2,
+                }
+            },
+            {
+                'type': Reshape,
+                POSITIONAL_ARGS: [(-1, V_SIZE)],
+                # 'shape': (1, V_SIZE),
+            },
+            {
+                'type': LSTM,
+                POSITIONAL_ARGS: [V_SIZE],
+                'output_dim': V_SIZE,
+                KEYWORD_ARGS: {
+                    # 'init': 'glorot_normal',
+                    'activation': 'relu',
+                    # 'activation': 'tanh',
+                    # 'activation': LeakyReLU(0.2),
+                }
+            },
+        ]
+    }
 
 GENERATOR = {
         'name': 'deconv4',
@@ -370,10 +401,11 @@ ENCODER_DISCRIMINATOR = {
 DEFAULT_STRUCTURE = {
     'encoder': ENCODER,
     'decoder': DECODER,
+    'state_predictor': STATE_PREDICTOR,
     'generator': GENERATOR,
     'screen_discriminator': SCREEN_DISCRIMINATOR,
     'encoder_shallow': ENCODER_SHALLOW,
-    'encoder_discriminator': ENCODER_DISCRIMINATOR,
+    'discriminator': ENCODER_DISCRIMINATOR,
 }
 
 

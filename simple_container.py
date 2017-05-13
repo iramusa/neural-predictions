@@ -103,6 +103,9 @@ class DataContainer(object):
 
         return random_eps
 
+    def get_episode(self):
+        return self.get_n_random_episodes(1)[0]
+
     def get_batch_episodes(self):
         self.get_n_random_episodes(self.batch_size)
 
