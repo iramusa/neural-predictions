@@ -75,20 +75,22 @@ class MultiNetwork(object):
         self.encoder = None
         self.decoder = None
         self.generator = None
-        self.physics_predictor = None
+        self.state_predictor = None
         self.action_mapper = None
         self.action_predictor = None
         self.state_sampler = None
 
-        self.encoder_disc = None
+        self.discriminator = None
         self.screen_discriminator = None
         self.state_discriminator = None
 
         # full networks
+        self.autoencoder = None
         self.autoencoder_gen = None
         self.autoencoder_disc = None
         self.autoencoder_gan = None
 
+        self.screen_predictor = None
         self.screen_predictor_g = None
         self.screen_predictor_d = None
 
@@ -104,8 +106,9 @@ class MultiNetwork(object):
         self.generator = self.build_branch(self.structure['generator'])
         self.decoder = self.build_branch(self.structure['decoder'])
 
-        self.encoder_disc = self.build_branch(self.structure['encoder_discriminator'])
-        # self.screen_discriminator = self.build_branch(self.structure['screen_discriminator'])
+        self.discriminator = self.build_branch(self.structure['discriminator'])
+
+        self.state_predictor = self.build_branch(self.structure['state_predictor'])
 
         # self.physics_predictor = self.build_physics_predictor()
         # self.action_mapper = self.build_action_mapper()
@@ -116,7 +119,9 @@ class MultiNetwork(object):
 
     def build_networks(self):
         self.build_autoencoder()
+        self.build_autoencoder_gen()
         self.build_ae_gan()
+        self.build_screen_predictor()
 
     def build_branch(self, structure):
         input_shape = structure.get('input_shape')
@@ -150,7 +155,7 @@ class MultiNetwork(object):
 
         return branch
 
-    def build_autoencoder(self):
+    def build_autoencoder_gen(self):
         input_img = Input(shape=network_params.INPUT_IMAGE_SHAPE)
         input_noise = Input(shape=[network_params.NOISE_SIZE])
         z = self.encoder(input_img)
@@ -167,24 +172,23 @@ class MultiNetwork(object):
              show_layer_names=True,
              show_shapes=True)
 
-    def build_autoencoder_noise_free(self):
+    def build_autoencoder(self):
         input_img = Input(shape=network_params.INPUT_IMAGE_SHAPE)
         z = self.encoder(input_img)
 
-        screen_recon = self.generator(z)
+        screen_recon = self.decoder(z)
 
-        self.autoencoder_gen = Model(input_img, screen_recon)
-        # self.autoencoder_gen.compile(optimizer=Adam(lr=0.0001), loss=sq_diff_loss)
-        self.autoencoder_gen.compile(optimizer=Adam(lr=0.0001), loss='mse')
+        self.autoencoder = Model(input_img, screen_recon)
+        self.autoencoder.compile(optimizer=Adam(lr=0.0002), loss='mse')
         # self.autoencoder_gen.summary()
-        plot(self.autoencoder_gen, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_gen'), show_layer_names=True,
+        plot(self.autoencoder, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder'), show_layer_names=True,
              show_shapes=True)
 
     def build_ae_gan(self):
         input_img = Input(shape=network_params.INPUT_IMAGE_SHAPE)
         input_noise = Input(shape=[network_params.NOISE_SIZE])
         # z_disc = self.encoder_disc(input_img)
-        screen_disc = self.encoder_disc(input_img)
+        screen_disc = self.discriminator(input_img)
         # screen_disc = self.screen_discriminator(z_disc)
 
         self.autoencoder_disc = Model(input_img, screen_disc)
@@ -207,6 +211,19 @@ class MultiNetwork(object):
 
         # self.autoencoder_gan.summary()
         plot(self.autoencoder_gan, to_file='{0}/{1}.png'.format(self.models_folder, 'autoencoder_gan'),
+             show_layer_names=True,
+             show_shapes=True)
+
+    def build_screen_predictor(self):
+        input_img = Input(shape=network_params.INPUT_IMAGE_SHAPE)
+        z = self.encoder(input_img)
+        z_next = self.state_predictor(z)
+        screen_next = self.decoder(z_next)
+
+        self.screen_predictor = Model(input_img, screen_next)
+        self.screen_predictor.compile(optimizer='adam', loss='mse')
+
+        plot(self.screen_predictor, to_file='{0}/{1}.png'.format(self.models_folder, 'screen_predictor'),
              show_layer_names=True,
              show_shapes=True)
 
@@ -337,7 +354,14 @@ class MultiNetwork(object):
 
         return d_losses, g_losses
 
+    def train_predictor(self, ep_getter, batches):
+        losses = []
+        for _ in tqdm(range(batches)):
+            ep = ep_getter()
+            loss = self.screen_predictor.train_on_batch(ep[0:19], ep[1:20])
+            losses.append(loss)
 
+        return losses
 
     def test_ae_discriminator(self, batch_getter, batches):
         loss = 0

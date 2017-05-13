@@ -29,7 +29,7 @@ ERR_FILE = 'err.log'
 
 GAME = 'simple'
 BATCH_SIZE = 128
-BATCHES_PER_EPOCH = 600
+BATCHES_PER_EPOCH = 150
 
 
 class Experiment(object):
@@ -102,19 +102,19 @@ class Experiment(object):
 
     def train_ae(self, epochs=5, model_checkpoint=False):
         print('Training autoencoder for {0} epochs.'.format(epochs))
-        history = self.network.autoencoder_gen.fit_generator(self.train_gen.generate_ae(),
-                                                             samples_per_epoch=BATCHES_PER_EPOCH * BATCH_SIZE,
-                                                             nb_epoch=epochs,
-                                                             max_q_size=5,
-                                                             validation_data=self.valid_gen.generate_ae(),
-                                                             nb_val_samples=4 * BATCH_SIZE)
+        history = self.network.autoencoder.fit_generator(self.train_gen.generate_ae(),
+                                                         samples_per_epoch=BATCHES_PER_EPOCH * BATCH_SIZE,
+                                                         nb_epoch=epochs,
+                                                         max_q_size=5,
+                                                         validation_data=self.valid_gen.generate_ae(),
+                                                         nb_val_samples=4 * BATCH_SIZE)
 
         self.losses['ae_train'] += history.history['loss']
         self.losses['ae_valid'] += history.history['val_loss']
 
-        self.save_losses()
+        # self.save_losses()
         self.save_ae_recons('AE')
-        self.save_models()
+        # self.save_models()
 
         if model_checkpoint:
             epochs_so_far = len(self.losses['ae_train'])
@@ -172,7 +172,7 @@ class Experiment(object):
         self.losses['ae_valid'] += history.history['val_loss']
 
         # self.save_losses()
-        self.save_ae_recons('GAN')
+        self.save_ae_gen_recons('GAN')
         self.save_models()
 
         if model_checkpoint:
@@ -191,10 +191,78 @@ class Experiment(object):
             self.g_losses.append(g_loss[-1])
 
             if i % 5 == 0:
-                self.plot_losses()
-                self.save_ae_recons('gan', len(self.d_losses))
+                self.plot_gan_losses()
+                self.save_ae_gen_recons('gan', len(self.d_losses))
 
-    def save_ae_recons(self, label, count=None):
+    def train_pred(self, epochs=50):
+        for i in range(epochs):
+            print('Epoch ', i)
+            losses = self.network.train_predictor(self.train_gen.get_episode, 100)
+            print('Losses:', losses[-1])
+            # if i % 5 == 0:
+            #     self.plot_gan_losses()
+            #     self.save_ae_recons('gan', len(self.d_losses))
+
+    def save_pred_recons(self, label='pred', count=None):
+        ep = self.valid_gen.get_episode()
+        ep_query = ep[0:19, ...]
+        ep_valid = ep[1:20, ...]
+        ep_pred = self.network.screen_predictor.predict(ep_query)
+        merged = np.concatenate((ep_valid.reshape((19 * 28, 28)), ep_pred.reshape((19 * 28, 28))), axis=1).T
+
+        # return to viewable representation
+        merged *= 255
+        merged = merged.astype('uint8')
+
+        # if merged.shape[2] == 1:
+        #     merged = merged.reshape(merged.shape[:2])
+
+        if count is None:
+            epochs_so_far = len(self.losses['ae_train'])
+        else:
+            epochs_so_far = count
+        print('Saving new reconstructions after {0} epochs.'.format(epochs_so_far))
+        # imsave('{0}/{1}.png'.format(self.reconstructions_folder, epochs_so_far), tiled)
+
+        # print('tiled', tiled.shape)
+        merged = Image.fromarray(merged)
+        merged.save('{0}/{1}{2}.png'.format(self.reconstructions_folder, label, epochs_so_far))
+
+    def save_ae_recons(self, label='ae', count=None):
+        N_SAMPLES = 5
+        im_med = self.train_gen.im_med
+        im_valid = self.valid_gen.get_batch_images()
+        im_recon = self.network.autoencoder.predict(im_valid)
+
+        # print('im_valid', im_valid.shape)
+        # print('im_recon', im_recon.shape)
+        # print('im_med', im_med.shape)
+
+        pairs = []
+        for i in range(N_SAMPLES):
+            pairs.append(np.concatenate([im_valid[i, ...] + im_med, im_recon[i, ...] + im_med], axis=0))
+
+        tiled = np.concatenate(pairs, axis=1)
+
+        # return to viewable representation
+        tiled *= 255
+        tiled = tiled.astype('uint8')
+
+        if tiled.shape[2] == 1:
+            tiled = tiled.reshape(tiled.shape[:2])
+
+        if count is None:
+            epochs_so_far = len(self.losses['ae_train'])
+        else:
+            epochs_so_far = count
+        print('Saving new reconstructions after {0} epochs.'.format(epochs_so_far))
+        # imsave('{0}/{1}.png'.format(self.reconstructions_folder, epochs_so_far), tiled)
+
+        # print('tiled', tiled.shape)
+        tiled = Image.fromarray(tiled)
+        tiled.save('{0}/{1}{2}.png'.format(self.reconstructions_folder, label, epochs_so_far))
+
+    def save_ae_gen_recons(self, label, count=None):
         N_SAMPLES = 5
         im_med = self.train_gen.im_med
         im_valid = self.valid_gen.get_batch_images()
@@ -234,7 +302,7 @@ class Experiment(object):
         losses = pd.DataFrame.from_dict(self.losses)
         losses.to_csv('{0}/losses.csv'.format(self.output_folder))
 
-    def plot_losses(self):
+    def plot_gan_losses(self):
         epoch = len(self.d_losses)
         plt.figure(figsize=(10, 8))
         plt.plot(self.g_losses, label='Generative loss')
@@ -336,7 +404,7 @@ class Experiment(object):
                 self.losses['ae_train'] += history.history['loss']
                 self.losses['ae_valid'] += history.history['val_loss']
 
-            self.save_ae_recons('GAN')
+            self.save_ae_gen_recons('GAN')
 
             if not i % 10:
                 self.save_models()
