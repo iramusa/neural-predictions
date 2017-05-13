@@ -8,7 +8,8 @@ import os
 import time
 import tensorflow as tf
 
-SIM = 'simple'
+# SIM = 'simple'
+SIM = 'single'
 FILENAME = SIM + '-valid'
 # FILENAME = SIM + '-train'
 EPISODES_TRAIN = 1000

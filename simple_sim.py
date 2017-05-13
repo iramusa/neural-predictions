@@ -5,25 +5,31 @@ from scipy.signal import convolve2d
 
 WORLD_LEN = 28
 WORLD_SIZE = np.array((WORLD_LEN, WORLD_LEN))
-N_BODIES = 4
+# N_BODIES = 4
+N_BODIES = 1
 MAX_AX_V = 3
 
 FACES = {
-    'T': np.array([
+    '[]': np.array([
         [1, 1, 1],
-        [0, 1, 0],
-        [0, 1, 0],
-    ]),
-    '/': np.array([
-        [0, 0, 1],
-        [0, 1, 0],
-        [1, 0, 0],
-    ]),
-    '-': np.array([
-        [0, 0, 0],
         [1, 1, 1],
-        [0, 0, 0],
+        [1, 1, 1],
     ]),
+    # 'T': np.array([
+    #     [1, 1, 1],
+    #     [0, 1, 0],
+    #     [0, 1, 0],
+    # ]),
+    # '/': np.array([
+    #     [0, 0, 1],
+    #     [0, 1, 0],
+    #     [1, 0, 0],
+    # ]),
+    # '-': np.array([
+    #     [0, 0, 0],
+    #     [1, 1, 1],
+    #     [0, 0, 0],
+    # ]),
 }
 FACE_LIST = FACES.keys()
 
